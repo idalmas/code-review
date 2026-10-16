@@ -1,0 +1,7 @@
+.env
+.DS_Store
+# backend
+backend/.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/

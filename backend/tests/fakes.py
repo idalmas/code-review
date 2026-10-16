@@ -1,0 +1,67 @@
+from datetime import UTC, datetime
+
+from app.services.github import ChangedFile, NotFoundError, PullRequest
+
+
+def make_pull(**overrides) -> PullRequest:
+    data = dict(
+        owner="acme",
+        repo="api",
+        number=7,
+        title="Add things",
+        body=None,
+        state="open",
+        draft=False,
+        merged=False,
+        author=None,
+        base_ref="main",
+        head_ref="feature",
+        base_sha="a" * 40,
+        head_sha="b" * 40,
+        html_url="https://github.com/acme/api/pull/7",
+        additions=0,
+        deletions=0,
+        changed_files=0,
+        commits=1,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        updated_at=datetime(2026, 1, 2, tzinfo=UTC),
+    )
+    data.update(overrides)
+    return PullRequest(**data)
+
+
+class FakeGitHubService:
+    def __init__(self, pull: PullRequest, files: list[ChangedFile]) -> None:
+        self.pull = pull
+        self.files = files
+
+    async def get_pull_request(self, owner: str, repo: str, number: int) -> PullRequest:
+        if number != self.pull.number:
+            raise NotFoundError("Pull request not found.")
+        return self.pull
+
+    async def list_files(self, owner: str, repo: str, number: int) -> list[ChangedFile]:
+        await self.get_pull_request(owner, repo, number)
+        return self.files
+
+    async def aclose(self) -> None:
+        pass
+
+
+SAMPLE_FILES = [
+    ChangedFile(
+        filename="src/b.py", status="modified", additions=1, deletions=1, changes=2,
+        patch="@@ -1 +1 @@\n-a\n+b",
+    ),
+    ChangedFile(
+        filename="package-lock.json", status="modified", additions=500, deletions=400,
+        changes=900, patch=None,
+    ),
+    ChangedFile(
+        filename="src/A.py", status="added", additions=2, deletions=0, changes=2,
+        patch="@@ -0,0 +1,2 @@\n+x\n+y",
+    ),
+    ChangedFile(
+        filename="logo.png", status="added", additions=0, deletions=0, changes=0, patch=None
+    ),
+]  # fmt: skip

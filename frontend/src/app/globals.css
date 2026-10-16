@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #ffffff;
+  --panel: #f6f8fa;
+  --border: #d0d7de;
+  --fg: #1f2328;
+  --muted: #59636e;
+  --accent: #0969da;
+  --add-bg: #dafbe1;
+  --add-fg: #1a7f37;
+  --add-num: #aceebb;
+  --del-bg: #ffebe9;
+  --del-fg: #cf222e;
+  --del-num: #ffcecb;
+  --hunk-bg: #ddf4ff;
+  --selected: #eaeef2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --panel: #151b23;
+    --border: #3d444d;
+    --fg: #e6edf3;
+    --muted: #9198a1;
+    --accent: #4493f8;
+    --add-bg: #12261e;
+    --add-fg: #3fb950;
+    --add-num: #1d4428;
+    --del-bg: #25171c;
+    --del-fg: #f85149;
+    --del-num: #542426;
+    --hunk-bg: #121d2f;
+    --selected: #212830;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-border: var(--border);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-add-bg: var(--add-bg);
+  --color-add-fg: var(--add-fg);
+  --color-add-num: var(--add-num);
+  --color-del-bg: var(--del-bg);
+  --color-del-fg: var(--del-fg);
+  --color-del-num: var(--del-num);
+  --color-hunk-bg: var(--hunk-bg);
+  --color-selected: var(--selected);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+kbd {
+  font-family: var(--font-mono);
+  font-size: 0.75em;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 4px;
+}
