@@ -16,7 +16,7 @@ from .types import (
     RateLimitError,
 )
 
-T = TypeVar("T")
+_T = TypeVar("_T")
 
 _PER_PAGE = 100
 _MAX_PAGES = 30  # 30 * 100 = GitHub's 3000-file cap
@@ -30,7 +30,7 @@ class _TTLCache:
         self._entries: dict[tuple, tuple[float, Any]] = {}
         self._inflight: dict[tuple, asyncio.Future] = {}
 
-    async def get_or_fetch(self, key: tuple, fetch: Callable[[], Awaitable[T]]) -> T:
+    async def get_or_fetch(self, key: tuple, fetch: Callable[[], Awaitable[_T]]) -> _T:
         hit = self._entries.get(key)
         if hit is not None and hit[0] > time.monotonic():
             return hit[1]

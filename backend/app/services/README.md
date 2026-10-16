@@ -22,3 +22,7 @@ Rules:
 | `github`  | Fetch PR metadata and changed files from the GitHub REST API.       |
 | `diff`    | Parse unified patches into hunks/lines and classify files.          |
 | `review`  | Build the review model (file tree, noise detection, per-file diffs). |
+- Services expose only public methods declared on their `Protocol`. In `impl.py`, the
+  implementation class is the only public name, and its public methods must exactly match
+  the interface; helpers, constants and extra methods are `_private`. Also enforced by
+  `tests/test_service_boundaries.py`.
