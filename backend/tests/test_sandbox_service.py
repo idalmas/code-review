@@ -23,6 +23,7 @@ def captured(monkeypatch):
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
     monkeypatch.setattr("shutil.which", lambda _: "/usr/bin/docker")
+    monkeypatch.setattr("os.chown", lambda *a, **k: None)
     return calls
 
 
@@ -64,3 +65,12 @@ async def test_disabled_sandbox_refuses(tmp_path: Path) -> None:
     with pytest.raises(SandboxUnavailableError):
         await sandbox.run(image="i", command=["x"], workdir=tmp_path, network=False,
                           timeout_seconds=1)  # fmt: skip
+
+
+async def test_never_runs_containers_as_root(captured, monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("os.getuid", lambda: 0)
+    monkeypatch.setattr("os.getgid", lambda: 0)
+    await create_sandbox_service(enabled=True).run(
+        image="i", command=["x"], workdir=tmp_path, network=False, timeout_seconds=1
+    )
+    assert _flag(captured[0], "--user") == ["1000:1000"]

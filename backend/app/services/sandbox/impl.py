@@ -7,6 +7,9 @@ from pathlib import Path
 from .types import SandboxResult, SandboxUnavailableError
 
 _OUTPUT_TAIL = 20_000
+# Containers never run as root. If the backend itself runs as root, jobs run as this
+# unprivileged user instead (the renderer image's own user), which then owns the job folder.
+_FALLBACK_UID = 1000
 
 
 class SandboxServiceImpl:
@@ -43,9 +46,13 @@ class SandboxServiceImpl:
             raise SandboxUnavailableError("Sandbox is disabled or Docker isn't installed.")
 
         name = f"cr-sandbox-{uuid.uuid4().hex[:12]}"
+        user = f"{os.getuid()}:{os.getgid()}"
+        if os.getuid() == 0:
+            await asyncio.to_thread(_chown_tree, workdir, _FALLBACK_UID)
+            user = f"{_FALLBACK_UID}:{_FALLBACK_UID}"
         args = [
             "docker", "run", "--rm", "--name", name,
-            "--user", f"{os.getuid()}:{os.getgid()}",
+            "--user", user,
             "--cap-drop", "ALL",
             "--security-opt", "no-new-privileges",
             "--memory", self._memory, "--memory-swap", self._memory,
@@ -87,3 +94,10 @@ class SandboxServiceImpl:
             timed_out=timed_out,
             output=stdout.decode(errors="replace")[-_OUTPUT_TAIL:],
         )
+
+
+def _chown_tree(root: Path, uid: int) -> None:
+    os.chown(root, uid, uid)
+    for directory, dirs, files in os.walk(root):
+        for name in dirs + files:
+            os.chown(os.path.join(directory, name), uid, uid, follow_symlinks=False)
