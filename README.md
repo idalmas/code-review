@@ -77,9 +77,9 @@ To enable AI summaries, also set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`. The ti
 
 | Tier     | Anthropic (default)  | OpenAI (default) |
 | -------- | -------------------- | ---------------- |
-| Cheap    | Claude Haiku 5.5     | gpt-5-nano       |
-| Balanced | Claude Sonnet 5.5    | gpt-5-mini       |
-| Best     | Claude Opus 5.5      | gpt-5            |
+| Cheap    | Claude Haiku 5.5     | GPT-6 Luna       |
+| Balanced | Claude Sonnet 5.5    | GPT-5.6 Terra    |
+| Best     | Claude Opus 5.5      | GPT-6.1 Sol      |
 
 Override any of them with `LLM_MODEL_CHEAP` / `LLM_MODEL_BALANCED` / `LLM_MODEL_BEST`.
 

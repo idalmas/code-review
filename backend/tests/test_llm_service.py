@@ -137,3 +137,8 @@ async def test_openai_maps_request_and_response(monkeypatch) -> None:
         "max_output_tokens": 500,
         "reasoning": {"effort": "medium"},
     }
+
+
+def test_openai_tiers_are_luna_terra_sol() -> None:
+    tiers = {t.tier: t.model for t in create_llm_service(openai_api_key="sk-oa").status().tiers}
+    assert tiers == {"cheap": "gpt-6-luna", "balanced": "gpt-5.6-terra", "best": "gpt-6.1-sol"}

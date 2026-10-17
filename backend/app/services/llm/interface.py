@@ -40,10 +40,12 @@ DEFAULT_TIERS: dict[Provider, dict[Tier, TierConfig]] = {
         "balanced": TierConfig(model="claude-sonnet-5-5", effort="medium"),
         "best": TierConfig(model="claude-opus-5-5", effort="high"),
     },
+    # Luna / Terra / Sol. There is no GPT-6.1 Luna or Terra yet, so those use the newest
+    # release of each line.
     "openai": {
-        "cheap": TierConfig(model="gpt-5-nano", effort="low"),
-        "balanced": TierConfig(model="gpt-5-mini", effort="medium"),
-        "best": TierConfig(model="gpt-5", effort="high"),
+        "cheap": TierConfig(model="gpt-6-luna", effort="low"),
+        "balanced": TierConfig(model="gpt-5.6-terra", effort="medium"),
+        "best": TierConfig(model="gpt-6.1-sol", effort="high"),
     },
 }
 
