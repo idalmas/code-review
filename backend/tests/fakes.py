@@ -7,6 +7,7 @@ from app.services.github import (
     OAuthExchangeError,
     PullRequest,
 )
+from app.services.llm import Completion, CompletionRequest, LLMNotConfiguredError, LLMStatus
 
 
 def make_pull(**overrides) -> PullRequest:
@@ -92,3 +93,23 @@ SAMPLE_FILES = [
         filename="logo.png", status="added", additions=0, deletions=0, changes=0, patch=None
     ),
 ]  # fmt: skip
+
+
+class FakeLLMService:
+    def __init__(self, enabled: bool = True) -> None:
+        self.enabled = enabled
+        self.requests: list[CompletionRequest] = []
+
+    def status(self) -> LLMStatus:
+        return LLMStatus(enabled=self.enabled, provider="anthropic" if self.enabled else None,
+                         default_tier="cheap", tiers=[])  # fmt: skip
+
+    async def complete(self, request: CompletionRequest) -> Completion:
+        if not self.enabled:
+            raise LLMNotConfiguredError("AI features are off.")
+        self.requests.append(request)
+        return Completion(text=" Adds two names. \n", tier=request.tier, provider="anthropic",
+                          model="claude-haiku-5-5", input_tokens=120, output_tokens=12)  # fmt: skip
+
+    async def aclose(self) -> None:
+        pass

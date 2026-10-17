@@ -10,6 +10,8 @@ dependencies = [
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
     "cryptography>=50.0.2",
+    "anthropic>=1.15.0",
+    "openai>=3.34.0",
 ]
 
 [dependency-groups]

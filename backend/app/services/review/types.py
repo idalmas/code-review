@@ -4,10 +4,19 @@ from pydantic import BaseModel
 
 from app.services.diff import FileCategory, Hunk
 from app.services.github import FileStatus, PullRequest
+from app.services.llm import Provider, Tier
 
 
 class FileNotInPullRequestError(LookupError):
     """Raised when asking for the diff of a path the PR didn't change."""
+
+
+class NothingToSummarizeError(ValueError):
+    """The file has no text diff (binary, empty, or too large for GitHub to send)."""
+
+
+class DiffTooLargeToSummarizeError(ValueError):
+    """The diff is bigger than we're willing to send to a model in one request."""
 
 
 class ReviewFile(BaseModel):
@@ -48,3 +57,14 @@ class FileDiff(BaseModel):
     file: ReviewFile
     hunks: list[Hunk]
     unavailable_reason: DiffUnavailableReason | None = None
+
+
+class FileSummary(BaseModel):
+    path: str
+    text: str
+    tier: Tier
+    provider: Provider
+    model: str
+    input_tokens: int
+    output_tokens: int
+    truncated: bool

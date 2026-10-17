@@ -12,6 +12,8 @@ Paste a PR link (or swap `github.com` for this app's host in any PR URL) and you
 - **Keyboard flow**: `j`/`k` next/previous file, `v` mark viewed and jump to the next
   unviewed file, `/` filter.
 - **Lazy per-file diffs** with the next file prefetched, so thousands of files stay fast.
+- **AI summaries per file** with a Cheap / Balanced / Best picker. Bring your own Anthropic
+  or OpenAI key; with no key, AI features stay hidden.
 - **Sign in with GitHub**: every request runs as the signed-in user, so you see exactly the
   repos you can see on GitHub. Sessions are encrypted httpOnly cookies, with no database.
 
@@ -26,6 +28,7 @@ backend/   FastAPI REST API (Python 3.12+, uv)
     services/        ALL business logic (see backend/app/services/README.md)
       auth/          Sign in with GitHub (OAuth), encrypted cookie sessions
       links/         GitHub URL → PR reference
+      llm/           Anthropic or OpenAI behind three tiers (cheap / balanced / best)
       github/        GitHub REST client with caching + pagination
       diff/          unified-diff parser and file classifier
       review/        builds the review model from the services above
@@ -50,6 +53,8 @@ its package; a test fails if anything reaches into another service's internals.
 | POST   | `/api/links/resolve` `{url}`                            | owner, repo, number, `app_path`          |
 | GET    | `/api/repos/{owner}/{repo}/pulls/{number}/review`       | PR metadata, classified file list, stats |
 | GET    | `/api/repos/{owner}/{repo}/pulls/{number}/files/{path}` | parsed hunks for one file                |
+| POST   | `/api/repos/{owner}/{repo}/pulls/{number}/summaries` `{path, tier}` | AI summary of one file (signed in) |
+| GET    | `/api/llm`                                              | whether AI is on, model per tier         |
 
 Interactive docs at http://localhost:8000/docs. The browser only talks to `/api/*` on the
 Next.js origin, which proxies to FastAPI (`BACKEND_URL`).
@@ -67,6 +72,16 @@ To enable sign-in (needed for private repos, and for more than 60 GitHub request
 a GitHub OAuth app at **GitHub → Settings → Developer settings → OAuth Apps → New OAuth App**
 with callback URL `http://localhost:3000/api/auth/callback`, then fill in `GITHUB_CLIENT_ID`,
 `GITHUB_CLIENT_SECRET` and `SESSION_SECRET` in `backend/.env`.
+
+To enable AI summaries, also set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`. The tiers map to:
+
+| Tier     | Anthropic (default)  | OpenAI (default) |
+| -------- | -------------------- | ---------------- |
+| Cheap    | Claude Haiku 5.5     | gpt-5-nano       |
+| Balanced | Claude Sonnet 5.5    | gpt-5-mini       |
+| Best     | Claude Opus 5.5      | gpt-5            |
+
+Override any of them with `LLM_MODEL_CHEAP` / `LLM_MODEL_BALANCED` / `LLM_MODEL_BEST`.
 
 Then open http://localhost:3000.
 

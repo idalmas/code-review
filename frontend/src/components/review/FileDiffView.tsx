@@ -3,16 +3,37 @@
 import { useEffect, useState } from "react";
 
 import { ApiError } from "@/lib/api";
-import type { DiffLine, FileDiff, Hunk, ReviewFile } from "@/lib/types";
+import type {
+  DiffLine,
+  FileDiff,
+  FileSummary,
+  Hunk,
+  LLMStatus,
+  ReviewFile,
+  Tier,
+} from "@/lib/types";
+
+import { FileSummaryPanel } from "./FileSummaryPanel";
 
 interface Props {
   file: ReviewFile;
   viewed: boolean;
   onToggleViewed: () => void;
   loadDiff: (path: string) => Promise<FileDiff>;
+  llm: LLMStatus | null;
+  summarize: (path: string, tier: Tier) => Promise<FileSummary>;
+  cachedSummary: (path: string, tier: Tier) => Promise<FileSummary> | undefined;
 }
 
-export function FileDiffView({ file, viewed, onToggleViewed, loadDiff }: Props) {
+export function FileDiffView({
+  file,
+  viewed,
+  onToggleViewed,
+  loadDiff,
+  llm,
+  summarize,
+  cachedSummary,
+}: Props) {
   const [diff, setDiff] = useState<FileDiff | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,6 +74,15 @@ export function FileDiffView({ file, viewed, onToggleViewed, loadDiff }: Props) 
           Viewed <kbd>v</kbd>
         </label>
       </div>
+
+      {llm?.enabled && file.has_diff && (
+        <FileSummaryPanel
+          path={file.path}
+          status={llm}
+          summarize={summarize}
+          cached={cachedSummary}
+        />
+      )}
 
       {error && <p className="p-4 text-del-fg">{error}</p>}
       {!diff && !error && <p className="p-4 text-muted">Loading diff…</p>}

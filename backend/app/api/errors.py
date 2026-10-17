@@ -3,11 +3,17 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app.api.deps import SignInRequiredError
 from app.services.auth import LoginNotConfiguredError
 from app.services.diff import PatchParseError
 from app.services.github import GitHubError, RateLimitError
 from app.services.links import InvalidLinkError
-from app.services.review import FileNotInPullRequestError
+from app.services.llm import LLMError
+from app.services.review import (
+    DiffTooLargeToSummarizeError,
+    FileNotInPullRequestError,
+    NothingToSummarizeError,
+)
 
 
 def _error(status: int, code: str, message: str, **extra) -> JSONResponse:
@@ -18,6 +24,22 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(InvalidLinkError)
     async def _invalid_link(_: Request, exc: InvalidLinkError) -> JSONResponse:
         return _error(400, "invalid_link", str(exc))
+
+    @app.exception_handler(SignInRequiredError)
+    async def _sign_in(_: Request, exc: SignInRequiredError) -> JSONResponse:
+        return _error(401, "sign_in_required", str(exc))
+
+    @app.exception_handler(NothingToSummarizeError)
+    async def _nothing(_: Request, exc: NothingToSummarizeError) -> JSONResponse:
+        return _error(422, "nothing_to_summarize", str(exc))
+
+    @app.exception_handler(DiffTooLargeToSummarizeError)
+    async def _too_large(_: Request, exc: DiffTooLargeToSummarizeError) -> JSONResponse:
+        return _error(413, "diff_too_large", str(exc))
+
+    @app.exception_handler(LLMError)
+    async def _llm(_: Request, exc: LLMError) -> JSONResponse:
+        return _error(exc.status_code, exc.code, exc.message)
 
     @app.exception_handler(LoginNotConfiguredError)
     async def _login_off(_: Request, exc: LoginNotConfiguredError) -> JSONResponse:

@@ -3,13 +3,13 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.deps import SESSION_COOKIE, get_auth_service, get_review_service
+from app.api.deps import SESSION_COOKIE, get_auth_service, get_llm_service, get_review_service
 from app.main import app
 from app.services.auth import create_auth_service
 from app.services.diff import create_diff_service
 from app.services.review import create_review_service
 
-from .fakes import SAMPLE_FILES, FakeGitHubService, make_pull
+from .fakes import SAMPLE_FILES, FakeGitHubService, FakeLLMService, make_pull
 
 
 @pytest.fixture
@@ -18,8 +18,13 @@ def github():
 
 
 @pytest.fixture
-def client(github):
-    review = create_review_service(github=github, diff=create_diff_service())
+def llm():
+    return FakeLLMService()
+
+
+@pytest.fixture
+def client(github, llm):
+    review = create_review_service(github=github, diff=create_diff_service(), llm=llm)
     auth = create_auth_service(
         github=github,
         client_id="cid",
@@ -29,6 +34,7 @@ def client(github):
     )
     app.dependency_overrides[get_review_service] = lambda: review
     app.dependency_overrides[get_auth_service] = lambda: auth
+    app.dependency_overrides[get_llm_service] = lambda: llm
     yield TestClient(app, follow_redirects=False)
     app.dependency_overrides.clear()
 
@@ -116,3 +122,32 @@ def test_login_not_configured(client, github) -> None:
     res = client.get("/api/auth/login")
     assert res.status_code == 503
     assert res.json()["code"] == "login_not_configured"
+
+
+def test_llm_status(client) -> None:
+    assert client.get("/api/llm").json()["enabled"] is True
+
+
+def test_summaries_require_sign_in_then_work(client, llm) -> None:
+    body = {"path": "src/A.py", "tier": "balanced"}
+    res = client.post("/api/repos/acme/api/pulls/7/summaries", json=body)
+    assert res.status_code == 401
+    assert res.json()["code"] == "sign_in_required"
+    assert llm.requests == []  # no money spent
+
+    sign_in(client)
+    res = client.post("/api/repos/acme/api/pulls/7/summaries", json=body)
+    assert res.status_code == 200
+    assert res.json()["text"] == "Adds two names."
+    assert llm.requests[0].tier == "balanced"
+
+    res = client.post("/api/repos/acme/api/pulls/7/summaries", json={"path": "x", "tier": "huge"})
+    assert res.status_code == 422
+
+
+def test_summaries_when_ai_is_off(client, llm) -> None:
+    llm.enabled = False
+    sign_in(client)
+    res = client.post("/api/repos/acme/api/pulls/7/summaries", json={"path": "src/A.py"})
+    assert res.status_code == 503
+    assert res.json()["code"] == "llm_not_configured"

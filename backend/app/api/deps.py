@@ -10,6 +10,7 @@ from app.services.auth import AuthService, Session, create_auth_service
 from app.services.diff import DiffService, create_diff_service
 from app.services.github import GitHubService, create_github_service
 from app.services.links import LinkService, create_link_service
+from app.services.llm import LLMService, create_llm_service
 from app.services.review import ReviewService, create_review_service
 
 SESSION_COOKIE = "cr_session"
@@ -37,8 +38,27 @@ def get_github_service() -> GitHubService:
 
 
 @lru_cache
+def get_llm_service() -> LLMService:
+    settings = get_settings()
+    overrides = {
+        "cheap": settings.llm_model_cheap,
+        "balanced": settings.llm_model_balanced,
+        "best": settings.llm_model_best,
+    }
+    return create_llm_service(
+        provider=settings.llm_provider,
+        anthropic_api_key=settings.anthropic_api_key,
+        openai_api_key=settings.openai_api_key,
+        model_overrides={tier: model for tier, model in overrides.items() if model},
+        anthropic_server_fallbacks=settings.anthropic_server_fallbacks,
+    )
+
+
+@lru_cache
 def get_review_service() -> ReviewService:
-    return create_review_service(github=get_github_service(), diff=get_diff_service())
+    return create_review_service(
+        github=get_github_service(), diff=get_diff_service(), llm=get_llm_service()
+    )
 
 
 @lru_cache
@@ -64,3 +84,15 @@ def get_session(
 
 def get_viewer_token(session: Annotated[Session | None, Depends(get_session)]) -> str | None:
     return session.token if session else None
+
+
+class SignInRequiredError(Exception):
+    """Raised for endpoints that spend the deployment's money (AI) when nobody's signed in."""
+
+
+def require_viewer_when_login_enabled(
+    auth: Annotated[AuthService, Depends(get_auth_service)],
+    session: Annotated[Session | None, Depends(get_session)],
+) -> None:
+    if auth.is_enabled() and session is None:
+        raise SignInRequiredError("Sign in with GitHub to use AI features.")

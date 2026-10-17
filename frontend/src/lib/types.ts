@@ -110,3 +110,23 @@ export interface FileDiff {
   hunks: Hunk[];
   unavailable_reason: "binary_or_empty" | "too_large" | null;
 }
+
+export type Tier = "cheap" | "balanced" | "best";
+
+export interface LLMStatus {
+  enabled: boolean;
+  provider: "anthropic" | "openai" | null;
+  default_tier: Tier;
+  tiers: { tier: Tier; label: string; description: string; model: string }[];
+}
+
+export interface FileSummary {
+  path: string;
+  text: string;
+  tier: Tier;
+  provider: "anthropic" | "openai";
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  truncated: boolean;
+}

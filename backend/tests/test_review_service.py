@@ -1,15 +1,27 @@
 import pytest
 
 from app.services.diff import create_diff_service
-from app.services.review import FileNotInPullRequestError, create_review_service
+from app.services.github import ChangedFile
+from app.services.review import (
+    MAX_SUMMARY_DIFF_CHARS,
+    DiffTooLargeToSummarizeError,
+    FileNotInPullRequestError,
+    NothingToSummarizeError,
+    create_review_service,
+)
 
-from .fakes import SAMPLE_FILES, FakeGitHubService, make_pull
+from .fakes import SAMPLE_FILES, FakeGitHubService, FakeLLMService, make_pull
 
 
 @pytest.fixture
-def review():
+def llm():
+    return FakeLLMService()
+
+
+@pytest.fixture
+def review(llm):
     github = FakeGitHubService(make_pull(changed_files=4), SAMPLE_FILES)
-    return create_review_service(github=github, diff=create_diff_service())
+    return create_review_service(github=github, diff=create_diff_service(), llm=llm)
 
 
 async def test_summary_sorts_classifies_and_counts(review) -> None:
@@ -51,3 +63,33 @@ async def test_file_diff_explains_missing_patches(review) -> None:
 async def test_file_diff_unknown_path(review) -> None:
     with pytest.raises(FileNotInPullRequestError):
         await review.get_file_diff("acme", "api", 7, "nope.py", token=None)
+
+
+async def test_summarize_file_sends_diff_as_untrusted_data(review, llm) -> None:
+    summary = await review.summarize_file("acme", "api", 7, "src/A.py", tier="best", token=None)
+
+    assert summary.text == "Adds two names."
+    assert summary.model == "claude-haiku-5-5" and summary.input_tokens == 120
+    request = llm.requests[0]
+    assert request.tier == "best"
+    assert "<diff>\n@@ -0,0 +1,2 @@\n+x\n+y\n</diff>" in request.prompt
+    assert "File: src/A.py (added, +2 -0)" in request.prompt
+    assert "untrusted" in request.system
+
+
+async def test_summarize_refuses_files_without_text_diff(review, llm) -> None:
+    for path in ("package-lock.json", "logo.png"):
+        with pytest.raises(NothingToSummarizeError):
+            await review.summarize_file("acme", "api", 7, path, tier="cheap", token=None)
+    assert llm.requests == []
+
+
+async def test_summarize_refuses_instead_of_truncating(llm) -> None:
+    n = MAX_SUMMARY_DIFF_CHARS // 10
+    huge = ChangedFile(filename="big.py", status="added", additions=n, deletions=0, changes=n,
+                       patch=f"@@ -0,0 +1,{n} @@\n" + "\n".join(["+0123456789"] * n))  # fmt: skip
+    github = FakeGitHubService(make_pull(), [huge])
+    review = create_review_service(github=github, diff=create_diff_service(), llm=llm)
+    with pytest.raises(DiffTooLargeToSummarizeError):
+        await review.summarize_file("acme", "api", 7, "big.py", tier="cheap", token=None)
+    assert llm.requests == []

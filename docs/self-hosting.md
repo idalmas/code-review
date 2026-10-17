@@ -40,6 +40,20 @@ browser ──► web (Next.js, :3000) ──► backend (FastAPI, internal) ─
 
 When `APP_URL` starts with `https://`, cookies are marked `Secure`.
 
+## AI features (optional)
+
+Set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in `backend/.env` (both + `LLM_PROVIDER` to choose).
+Reviewers then get a per-file **Summarize** button with three tiers (Cheap / Balanced / Best);
+the operator decides which model backs each tier (`LLM_MODEL_CHEAP` etc.).
+
+- What's sent: the one file's diff, its path and the PR title, and only when someone clicks.
+  Requests go directly from your backend to the provider, using your key and your account's
+  data-retention terms.
+- Who can use it: when GitHub sign-in is enabled, only signed-in users, and only for PRs they
+  can read, so anonymous visitors can't spend your credits.
+- Anthropic refusals on Sonnet/Opus are retried server-side on Anthropic's recommended
+  fallback model. Disable with `ANTHROPIC_SERVER_FALLBACKS=false`.
+
 ## Access model
 
 - Every GitHub request uses the signed-in user's own OAuth token, so people only see repos

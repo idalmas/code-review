@@ -3,9 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.deps import get_github_service
+from app.api.deps import get_github_service, get_llm_service
 from app.api.errors import register_error_handlers
-from app.api.routes import auth, links, pulls
+from app.api.routes import auth, links, llm, pulls
 from app.config import get_settings
 
 
@@ -13,6 +13,7 @@ from app.config import get_settings
 async def lifespan(_: FastAPI):
     yield
     await get_github_service().aclose()
+    await get_llm_service().aclose()
 
 
 def create_app() -> FastAPI:
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
 
     app.include_router(auth.router, prefix="/api")
     app.include_router(links.router, prefix="/api")
+    app.include_router(llm.router, prefix="/api")
     app.include_router(pulls.router, prefix="/api")
     return app
 

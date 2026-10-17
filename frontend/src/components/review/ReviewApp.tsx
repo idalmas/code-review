@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { api, ApiError } from "@/lib/api";
 import { buildTree, flattenTree } from "@/lib/fileTree";
-import type { FileDiff, ReviewSummary } from "@/lib/types";
+import type { FileDiff, FileSummary, LLMStatus, ReviewSummary, Tier } from "@/lib/types";
 import { useMe } from "@/lib/useMe";
 import { useViewedFiles } from "@/lib/useViewedFiles";
 
@@ -30,6 +30,12 @@ export function ReviewApp({ owner, repo, number }: Props) {
   const [hideViewed, setHideViewed] = useState(false);
   const filterRef = useRef<HTMLInputElement>(null);
   const diffCache = useRef(new Map<string, Promise<FileDiff>>());
+  const summaryCache = useRef(new Map<string, Promise<FileSummary>>());
+  const [llm, setLlm] = useState<LLMStatus | null>(null);
+
+  useEffect(() => {
+    api.llmStatus().then(setLlm, () => setLlm(null));
+  }, []);
 
   const { isViewed, setFileViewed } = useViewedFiles(`viewed:${owner}/${repo}#${number}`);
 
@@ -52,6 +58,22 @@ export function ReviewApp({ owner, repo, number }: Props) {
         pending.catch(() => diffCache.current.delete(path));
         diffCache.current.set(path, pending);
       }
+      return pending;
+    },
+    [owner, repo, number],
+  );
+
+  const cachedSummary = useCallback(
+    (path: string, tier: Tier) => summaryCache.current.get(`${tier}:${path}`),
+    [],
+  );
+
+  // Each click asks again (and spends again); the latest answer is what we remember.
+  const summarize = useCallback(
+    (path: string, tier: Tier) => {
+      const pending = api.summarizeFile(owner, repo, number, path, tier);
+      summaryCache.current.set(`${tier}:${path}`, pending);
+      pending.catch(() => summaryCache.current.delete(`${tier}:${path}`));
       return pending;
     },
     [owner, repo, number],
@@ -210,6 +232,9 @@ export function ReviewApp({ owner, repo, number }: Props) {
               viewed={isViewed(selected)}
               onToggleViewed={toggleViewed}
               loadDiff={loadDiff}
+              llm={llm}
+              summarize={summarize}
+              cachedSummary={cachedSummary}
             />
           ) : (
             <p className="p-6 text-muted">No files match the current filters.</p>

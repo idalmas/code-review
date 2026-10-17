@@ -1,6 +1,7 @@
 import logging
 import secrets
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -26,6 +27,17 @@ class Settings(BaseSettings):
     # Encrypts session cookies. Without it, a random key is used and restarts sign everyone out.
     session_secret: str | None = None
     session_max_age_days: int = 30
+
+    # AI features. Set one key (or both plus LLM_PROVIDER). No key = AI features hidden.
+    llm_provider: Literal["anthropic", "openai"] | None = None
+    anthropic_api_key: str | None = None
+    openai_api_key: str | None = None
+    # Override the model behind each user-facing tier.
+    llm_model_cheap: str | None = None
+    llm_model_balanced: str | None = None
+    llm_model_best: str | None = None
+    # Re-run Anthropic refusals on a recommended fallback model (Sonnet/Opus only).
+    anthropic_server_fallbacks: bool = True
 
     cors_origins: str = "http://localhost:3000"
     cache_ttl_seconds: int = 120

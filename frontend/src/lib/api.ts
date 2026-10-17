@@ -1,4 +1,12 @@
-import type { FileDiff, Me, ResolvedLink, ReviewSummary } from "./types";
+import type {
+  FileDiff,
+  FileSummary,
+  LLMStatus,
+  Me,
+  ResolvedLink,
+  ReviewSummary,
+  Tier,
+} from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -35,6 +43,14 @@ export const api = {
   me: () => request<Me>("/auth/me"),
 
   logout: () => request<void>("/auth/logout", { method: "POST" }),
+
+  llmStatus: () => request<LLMStatus>("/llm"),
+
+  summarizeFile: (owner: string, repo: string, number: number, path: string, tier: Tier) =>
+    request<FileSummary>(`${prPath(owner, repo, number)}/summaries`, {
+      method: "POST",
+      body: JSON.stringify({ path, tier }),
+    }),
 
   resolveLink: (url: string) =>
     request<ResolvedLink>("/links/resolve", { method: "POST", body: JSON.stringify({ url }) }),
