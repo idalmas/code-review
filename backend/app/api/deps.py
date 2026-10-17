@@ -1,6 +1,7 @@
 """Wires services together. Routes get services from here via `Depends`."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, Request
@@ -11,7 +12,9 @@ from app.services.diff import DiffService, create_diff_service
 from app.services.github import GitHubService, create_github_service
 from app.services.links import LinkService, create_link_service
 from app.services.llm import LLMService, create_llm_service
+from app.services.render import RenderService, create_render_service
 from app.services.review import ReviewService, create_review_service
+from app.services.sandbox import SandboxService, create_sandbox_service
 
 SESSION_COOKIE = "cr_session"
 STATE_COOKIE = "cr_oauth_state"
@@ -62,6 +65,29 @@ def get_review_service() -> ReviewService:
 
 
 @lru_cache
+def get_sandbox_service() -> SandboxService:
+    settings = get_settings()
+    return create_sandbox_service(
+        enabled=settings.render_enabled,
+        network_mode=settings.render_install_network,
+        proxy=settings.render_install_proxy,
+        ca_file=settings.render_install_ca_file,
+    )
+
+
+@lru_cache
+def get_render_service() -> RenderService:
+    settings = get_settings()
+    return create_render_service(
+        github=get_github_service(),
+        llm=get_llm_service(),
+        sandbox=get_sandbox_service(),
+        work_dir=Path(settings.render_dir),
+        image=settings.render_image,
+    )
+
+
+@lru_cache
 def get_auth_service() -> AuthService:
     settings = get_settings()
     return create_auth_service(
@@ -84,6 +110,12 @@ def get_session(
 
 def get_viewer_token(session: Annotated[Session | None, Depends(get_session)]) -> str | None:
     return session.token if session else None
+
+
+def get_viewer_id(session: Annotated[Session | None, Depends(get_session)]) -> str:
+    """Who owns per-user results such as renders. Everyone shares "anonymous" only when
+    sign-in is off (local use); with sign-in on, the endpoints that create them require it."""
+    return f"github:{session.user.login}" if session else "anonymous"
 
 
 class SignInRequiredError(Exception):

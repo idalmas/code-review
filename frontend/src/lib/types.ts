@@ -130,3 +130,38 @@ export interface FileSummary {
   output_tokens: number;
   truncated: boolean;
 }
+
+export interface VersionShot {
+  image: string;
+  errors: string[];
+  page_overflow: boolean;
+  overflowing_elements: number;
+  timed_out: boolean;
+  ms: number;
+}
+
+export interface RenderState {
+  name: string;
+  viewport: { width: number; height: number };
+  base: VersionShot | null;
+  head: VersionShot | null;
+  changed: boolean;
+  problems: string[];
+}
+
+export interface RenderJob {
+  id: string;
+  path: string;
+  tier: Tier;
+  status:
+    | "queued"
+    | "downloading"
+    | "writing_harness"
+    | "installing"
+    | "rendering"
+    | "done"
+    | "skipped"
+    | "failed";
+  message: string | null;
+  states: RenderState[];
+}

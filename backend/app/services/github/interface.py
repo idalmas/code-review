@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Protocol
 
 from .types import (
@@ -51,6 +52,13 @@ class GitHubService(Protocol):
 
         Results are cached briefly, so calling this once per file view is cheap.
         """
+        ...
+
+    async def download_tarball(
+        self, owner: str, repo: str, ref: str, *, token: str | None, dest: Path, max_bytes: int
+    ) -> None:
+        """Save the repository at `ref` as a .tar.gz at `dest`. Raises `GitHubError` if it
+        fails or would exceed `max_bytes`."""
         ...
 
     async def get_viewer(self, *, token: str) -> GitHubUser:

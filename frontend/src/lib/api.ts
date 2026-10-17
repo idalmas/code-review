@@ -3,6 +3,7 @@ import type {
   FileSummary,
   LLMStatus,
   Me,
+  RenderJob,
   ResolvedLink,
   ReviewSummary,
   Tier,
@@ -46,6 +47,16 @@ export const api = {
 
   llmStatus: () => request<LLMStatus>("/llm"),
 
+  renderAvailability: () => request<{ enabled: boolean }>("/renders"),
+
+  startRender: (owner: string, repo: string, number: number, path: string, tier: Tier) =>
+    request<RenderJob>(`${prPath(owner, repo, number)}/renders`, {
+      method: "POST",
+      body: JSON.stringify({ path, tier }),
+    }),
+
+  getRender: (id: string) => request<RenderJob>(`/renders/${encodeURIComponent(id)}`),
+
   summarizeFile: (owner: string, repo: string, number: number, path: string, tier: Tier) =>
     request<FileSummary>(`${prPath(owner, repo, number)}/summaries`, {
       method: "POST",
@@ -63,3 +74,6 @@ export const api = {
       `${prPath(owner, repo, number)}/files/${path.split("/").map(encodeURIComponent).join("/")}`,
     ),
 };
+
+export const renderImageUrl = (id: string, version: "base" | "head", index: number) =>
+  `/api/renders/${encodeURIComponent(id)}/${version}/${index}.png`;

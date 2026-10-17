@@ -3,6 +3,7 @@ import hashlib
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, TypeVar
 
 import httpx
@@ -105,6 +106,29 @@ class GitHubServiceImpl:
 
         key = ("files", _token_key(token), owner, repo, number)
         return await self._cache.get_or_fetch(key, fetch)
+
+    async def download_tarball(
+        self, owner: str, repo: str, ref: str, *, token: str | None, dest: Path, max_bytes: int
+    ) -> None:
+        headers = {"Authorization": f"Bearer {token}"} if token else None
+        url = f"/repos/{owner}/{repo}/tarball/{ref}"
+        try:
+            # GitHub redirects to a signed codeload URL; httpx drops our token on that hop.
+            async with self._client.stream(
+                "GET", url, headers=headers, follow_redirects=True, timeout=120.0
+            ) as response:
+                if not response.is_success:
+                    await response.aread()
+                    _raise_for_status(response)
+                written = 0
+                with dest.open("wb") as f:
+                    async for chunk in response.aiter_bytes():
+                        written += len(chunk)
+                        if written > max_bytes:
+                            raise GitHubError(f"Repository is larger than {max_bytes:,} bytes.")
+                        f.write(chunk)
+        except httpx.HTTPError as exc:
+            raise GitHubError(f"Couldn't download the repository: {exc}") from exc
 
     async def get_viewer(self, *, token: str) -> GitHubUser:
         data = await self._get_json("/user", token=token)

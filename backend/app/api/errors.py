@@ -9,6 +9,7 @@ from app.services.diff import PatchParseError
 from app.services.github import GitHubError, RateLimitError
 from app.services.links import InvalidLinkError
 from app.services.llm import LLMError
+from app.services.render import NotRenderableError, RenderJobNotFoundError, RenderUnavailableError
 from app.services.review import (
     DiffTooLargeToSummarizeError,
     FileNotInPullRequestError,
@@ -36,6 +37,18 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(DiffTooLargeToSummarizeError)
     async def _too_large(_: Request, exc: DiffTooLargeToSummarizeError) -> JSONResponse:
         return _error(413, "diff_too_large", str(exc))
+
+    @app.exception_handler(RenderUnavailableError)
+    async def _render_off(_: Request, exc: RenderUnavailableError) -> JSONResponse:
+        return _error(503, "render_unavailable", str(exc))
+
+    @app.exception_handler(NotRenderableError)
+    async def _not_renderable(_: Request, exc: NotRenderableError) -> JSONResponse:
+        return _error(422, "not_renderable", str(exc))
+
+    @app.exception_handler(RenderJobNotFoundError)
+    async def _render_missing(_: Request, exc: RenderJobNotFoundError) -> JSONResponse:
+        return _error(404, "render_not_found", str(exc))
 
     @app.exception_handler(LLMError)
     async def _llm(_: Request, exc: LLMError) -> JSONResponse:

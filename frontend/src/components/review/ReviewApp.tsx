@@ -31,11 +31,27 @@ export function ReviewApp({ owner, repo, number }: Props) {
   const filterRef = useRef<HTMLInputElement>(null);
   const diffCache = useRef(new Map<string, Promise<FileDiff>>());
   const summaryCache = useRef(new Map<string, Promise<FileSummary>>());
+  const renderJobs = useRef(new Map<string, string>());
   const [llm, setLlm] = useState<LLMStatus | null>(null);
+  const [renderEnabled, setRenderEnabled] = useState(false);
 
   useEffect(() => {
     api.llmStatus().then(setLlm, () => setLlm(null));
+    api.renderAvailability().then(
+      (r) => setRenderEnabled(r.enabled),
+      () => setRenderEnabled(false),
+    );
   }, []);
+
+  const startRender = useCallback(
+    async (path: string, tier: Tier) => {
+      const job = await api.startRender(owner, repo, number, path, tier);
+      renderJobs.current.set(path, job.id);
+      return job;
+    },
+    [owner, repo, number],
+  );
+  const renderJobFor = useCallback((path: string) => renderJobs.current.get(path), []);
 
   const { isViewed, setFileViewed } = useViewedFiles(`viewed:${owner}/${repo}#${number}`);
 
@@ -235,6 +251,9 @@ export function ReviewApp({ owner, repo, number }: Props) {
               llm={llm}
               summarize={summarize}
               cachedSummary={cachedSummary}
+              renderEnabled={renderEnabled}
+              startRender={startRender}
+              renderJobFor={renderJobFor}
             />
           ) : (
             <p className="p-6 text-muted">No files match the current filters.</p>

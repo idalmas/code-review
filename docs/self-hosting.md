@@ -54,6 +54,43 @@ the operator decides which model backs each tier (`LLM_MODEL_CHEAP` etc.).
 - Anthropic refusals on Sonnet/Opus are retried server-side on Anthropic's recommended
   fallback model. Disable with `ANTHROPIC_SERVER_FALLBACKS=false`.
 
+## Component renders (optional)
+
+Reviewers can render a changed React component before and after the PR. This runs the PR's
+own code, so it happens in Docker containers started by the backend:
+
+1. The backend downloads both commits as tarballs (with the reviewer's GitHub token) and
+   unpacks them with path-traversal and size checks.
+2. **Install container:** network on, but package install scripts are disabled
+   (`--ignore-scripts`).
+3. An LLM writes a harness: the component in a typical state plus stress states.
+4. **Render container:** `--network none`. Vite serves the harness, Chromium screenshots it.
+
+Every container runs as a non-root user with all capabilities dropped,
+`no-new-privileges`, 2 GB memory, 2 CPUs, 512 processes, and a time limit. Nothing but the
+job's own folder is mounted; no secrets or tokens are passed in. Source and `node_modules`
+are deleted after each render; screenshots expire after two hours and are only served to
+the person who started the render.
+
+Setup, on a host with Docker:
+
+```bash
+docker build -t code-review-renderer renderer
+# backend/.env
+RENDER_ENABLED=true
+# Behind a TLS-inspecting corporate proxy, for the install step only:
+# RENDER_INSTALL_PROXY=http://proxy:3128
+# RENDER_INSTALL_CA_FILE=/etc/ssl/corp-ca.crt
+```
+
+The backend calls the `docker` CLI, so run it directly on the Docker host (as `./dev.sh`
+does). Rendering from inside the Compose backend container would require mounting the
+Docker socket into it, which gives that container root on the host, so the Compose setup
+leaves rendering off.
+
+Assumes a React frontend installed with npm, pnpm or yarn; Next.js `Link`, `Image` and
+navigation hooks are replaced with simple stand-ins.
+
 ## Access model
 
 - Every GitHub request uses the signed-in user's own OAuth token, so people only see repos

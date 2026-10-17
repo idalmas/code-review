@@ -62,6 +62,20 @@ class FakeGitHubService:
         await self.get_pull_request(owner, repo, number, token=token)
         return self.files
 
+    # path -> file contents, per commit sha; served as GitHub-style tarballs.
+    trees: dict[str, dict[str, str]] = {}
+
+    async def download_tarball(self, owner, repo, ref, *, token, dest, max_bytes) -> None:
+        import io
+        import tarfile
+
+        with tarfile.open(dest, "w:gz") as tar:
+            for path, text in self.trees[ref].items():
+                data = text.encode()
+                info = tarfile.TarInfo(f"{owner}-{repo}-{ref[:7]}/{path}")
+                info.size = len(data)
+                tar.addfile(info, io.BytesIO(data))
+
     async def get_viewer(self, *, token: str) -> GitHubUser:
         return GitHubUser(login="octocat", avatar_url="https://x/a.png", name="Octo Cat")
 
@@ -96,9 +110,10 @@ SAMPLE_FILES = [
 
 
 class FakeLLMService:
-    def __init__(self, enabled: bool = True) -> None:
+    def __init__(self, enabled: bool = True, replies: list[str] | None = None) -> None:
         self.enabled = enabled
         self.requests: list[CompletionRequest] = []
+        self.replies = replies or []
 
     def status(self) -> LLMStatus:
         return LLMStatus(enabled=self.enabled, provider="anthropic" if self.enabled else None,
@@ -108,7 +123,8 @@ class FakeLLMService:
         if not self.enabled:
             raise LLMNotConfiguredError("AI features are off.")
         self.requests.append(request)
-        return Completion(text=" Adds two names. \n", tier=request.tier, provider="anthropic",
+        text = self.replies.pop(0) if self.replies else " Adds two names. \n"
+        return Completion(text=text, tier=request.tier, provider="anthropic",
                           model="claude-haiku-5-5", input_tokens=120, output_tokens=12)  # fmt: skip
 
     async def aclose(self) -> None:

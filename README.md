@@ -14,6 +14,10 @@ Paste a PR link (or swap `github.com` for this app's host in any PR URL) and you
 - **Lazy per-file diffs** with the next file prefetched, so thousands of files stay fast.
 - **AI summaries per file** with a Cheap / Balanced / Best picker. Bring your own Anthropic
   or OpenAI key; with no key, AI features stay hidden.
+- **Before/after renders of changed React components**, side by side, in typical and stress
+  states (very long text, empty, many items, emoji/RTL, phone width), with automatic checks
+  for crashes, console errors and overflowing layout. An LLM writes the props; the PR's code
+  runs in a locked-down Docker container.
 - **Sign in with GitHub**: every request runs as the signed-in user, so you see exactly the
   repos you can see on GitHub. Sessions are encrypted httpOnly cookies, with no database.
 
@@ -32,6 +36,9 @@ backend/   FastAPI REST API (Python 3.12+, uv)
       github/        GitHub REST client with caching + pagination
       diff/          unified-diff parser and file classifier
       review/        builds the review model from the services above
+      sandbox/       runs untrusted code in locked-down Docker containers
+      render/        before/after component renders (downloads both commits, LLM harness)
+renderer/  the sandbox image: Vite + Chromium, renders a harness and takes screenshots
   tests/
 frontend/  Next.js (App Router, TypeScript, Tailwind)
   src/app/[owner]/[repo]/pull/[number]/[[...tab]]   mirrors GitHub's PR URLs
@@ -55,6 +62,9 @@ its package; a test fails if anything reaches into another service's internals.
 | GET    | `/api/repos/{owner}/{repo}/pulls/{number}/files/{path}` | parsed hunks for one file                |
 | POST   | `/api/repos/{owner}/{repo}/pulls/{number}/summaries` `{path, tier}` | AI summary of one file (signed in) |
 | GET    | `/api/llm`                                              | whether AI is on, model per tier         |
+| POST   | `/api/repos/{owner}/{repo}/pulls/{number}/renders` `{path, tier}` | start a before/after render (signed in) |
+| GET    | `/api/renders/{id}`                                     | render status and per-state results      |
+| GET    | `/api/renders/{id}/{base\|head}/{index}.png`            | screenshot (only for whoever started it) |
 
 Interactive docs at http://localhost:8000/docs. The browser only talks to `/api/*` on the
 Next.js origin, which proxies to FastAPI (`BACKEND_URL`).
@@ -82,6 +92,13 @@ To enable AI summaries, also set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`. The ti
 | Best     | Claude Opus 5.5      | GPT-6.1 Sol      |
 
 Override any of them with `LLM_MODEL_CHEAP` / `LLM_MODEL_BALANCED` / `LLM_MODEL_BEST`.
+
+To enable component renders (needs Docker and an LLM key):
+
+```bash
+docker build -t code-review-renderer renderer
+echo RENDER_ENABLED=true >> backend/.env
+```
 
 Then open http://localhost:3000.
 

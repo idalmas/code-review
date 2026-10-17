@@ -9,11 +9,19 @@ import type {
   FileSummary,
   Hunk,
   LLMStatus,
+  RenderJob,
   ReviewFile,
   Tier,
 } from "@/lib/types";
+import { useTier } from "@/lib/useTier";
 
 import { FileSummaryPanel } from "./FileSummaryPanel";
+import { RenderPanel } from "./RenderPanel";
+import { TierPicker } from "./TierPicker";
+
+// Same rule as the backend: component files, not tests or stories.
+const isComponentFile = (path: string) =>
+  /\.(tsx|jsx)$/.test(path) && !/\.(test|spec|stories)\.[jt]sx$/.test(path);
 
 interface Props {
   file: ReviewFile;
@@ -23,6 +31,9 @@ interface Props {
   llm: LLMStatus | null;
   summarize: (path: string, tier: Tier) => Promise<FileSummary>;
   cachedSummary: (path: string, tier: Tier) => Promise<FileSummary> | undefined;
+  renderEnabled: boolean;
+  startRender: (path: string, tier: Tier) => Promise<RenderJob>;
+  renderJobFor: (path: string) => string | undefined;
 }
 
 export function FileDiffView({
@@ -33,7 +44,11 @@ export function FileDiffView({
   llm,
   summarize,
   cachedSummary,
+  renderEnabled,
+  startRender,
+  renderJobFor,
 }: Props) {
+  const [tier, setTier] = useTier(llm?.default_tier ?? "cheap");
   const [diff, setDiff] = useState<FileDiff | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,12 +91,23 @@ export function FileDiffView({
       </div>
 
       {llm?.enabled && file.has_diff && (
-        <FileSummaryPanel
-          path={file.path}
-          status={llm}
-          summarize={summarize}
-          cached={cachedSummary}
-        />
+        <div className="space-y-3 border-b border-border px-4 py-2 text-sm">
+          <TierPicker status={llm} tier={tier} onChange={setTier} />
+          <FileSummaryPanel
+            path={file.path}
+            tier={tier}
+            summarize={summarize}
+            cached={cachedSummary}
+          />
+          {renderEnabled && isComponentFile(file.path) && (
+            <RenderPanel
+              path={file.path}
+              tier={tier}
+              start={startRender}
+              jobIdFor={renderJobFor}
+            />
+          )}
+        </div>
       )}
 
       {error && <p className="p-4 text-del-fg">{error}</p>}
