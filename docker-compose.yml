@@ -1,0 +1,19 @@
+# Self-hosted deployment. See docs/self-hosting.md.
+#   cp backend/.env.example backend/.env   # fill it in
+#   docker compose up -d --build
+services:
+  backend:
+    build: ./backend
+    env_file: backend/.env
+    restart: unless-stopped
+    # Not published: only the web app talks to it, over the internal network.
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        BACKEND_URL: http://backend:8000
+    depends_on: [backend]
+    restart: unless-stopped
+    ports:
+      - "3000:3000"

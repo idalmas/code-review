@@ -70,7 +70,13 @@ with callback URL `http://localhost:3000/api/auth/callback`, then fill in `GITHU
 
 Then open http://localhost:3000.
 
-Checks:
+## Self-hosting
+
+`docker compose up -d --build` runs everything in your own infrastructure. No vendor servers,
+no database, no telemetry. See [docs/self-hosting.md](docs/self-hosting.md), which also covers
+compliance (why self-hosting keeps this inside your own SOC 2 scope).
+
+## Checks
 
 ```bash
 cd backend && uv run pytest && uv run ruff check . && uv run ruff format --check .
