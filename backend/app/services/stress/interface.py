@@ -63,7 +63,7 @@ def create_stress_service(
     llm: LLMService,
     sandbox: SandboxService,
     work_dir: Path,
-    image: str = "code-review-sandbox",
+    image: str = "orbiter-sandbox",
 ) -> StressService:
     from .impl import StressServiceImpl
 

@@ -1,7 +1,7 @@
 [project]
-name = "code-review-backend"
+name = "orbiter-backend"
 version = "0.1.0"
-description = "REST API for the large-diff code review tool"
+description = "Orbiter REST API"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",

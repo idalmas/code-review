@@ -1,4 +1,4 @@
-# Project notes for Claude
+# Orbiter: project notes for Claude
 
 ## Commits
 

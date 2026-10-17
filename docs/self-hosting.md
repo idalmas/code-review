@@ -1,6 +1,6 @@
 # Self-hosting
 
-Code Review is built to run entirely inside your own infrastructure. There is no vendor
+Orbiter is built to run entirely inside your own infrastructure. There is no vendor
 server in the loop: your browser talks to your deployment, and your deployment talks to
 GitHub (and, if you turn on AI features, to the LLM provider *you* configure with *your* key).
 
@@ -82,7 +82,7 @@ to the person who started them.
 Setup, on a host with Docker:
 
 ```bash
-docker build -t code-review-sandbox sandbox-image
+docker build -t orbiter-sandbox sandbox-image
 # backend/.env
 SANDBOX_ENABLED=true
 # Behind a TLS-inspecting corporate proxy, for the install step only.

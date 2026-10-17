@@ -1,6 +1,6 @@
-# Code Review
+# Orbiter
 
-A web tool that makes reviewing large GitHub pull requests manageable.
+A review surface for GitHub pull requests: read big diffs calmly, see UI changes rendered, and comment right where it matters. Works alongside AI reviewers like Claude Code Review and Greptile, whose comments show up inline.
 
 Paste a PR link (or swap `github.com` for this app's host in any PR URL) and you get:
 
@@ -103,7 +103,7 @@ Override any of them with `LLM_MODEL_CHEAP` / `LLM_MODEL_BALANCED` / `LLM_MODEL_
 To enable component renders and stress tests (needs Docker and an LLM key):
 
 ```bash
-docker build -t code-review-sandbox sandbox-image
+docker build -t orbiter-sandbox sandbox-image
 echo SANDBOX_ENABLED=true >> backend/.env
 ```
 

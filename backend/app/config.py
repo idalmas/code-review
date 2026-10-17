@@ -41,8 +41,8 @@ class Settings(BaseSettings):
 
     # Renders and stress tests run PR code in Docker containers (see docs/self-hosting.md).
     sandbox_enabled: bool = False
-    sandbox_image: str = "code-review-sandbox"
-    sandbox_work_dir: str = "/tmp/code-review-sandbox"
+    sandbox_image: str = "orbiter-sandbox"
+    sandbox_work_dir: str = "/tmp/orbiter"
     # Only used while installing dependencies; running PR code never has network access.
     sandbox_install_network: str = "bridge"
     sandbox_install_proxy: str | None = None
