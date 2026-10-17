@@ -6,11 +6,12 @@ from app.services.review import (
     MAX_SUMMARY_DIFF_CHARS,
     DiffTooLargeToSummarizeError,
     FileNotInPullRequestError,
+    InvalidCommentError,
     NothingToSummarizeError,
     create_review_service,
 )
 
-from .fakes import SAMPLE_FILES, FakeGitHubService, FakeLLMService, make_pull
+from .fakes import SAMPLE_FILES, FakeGitHubService, FakeLLMService, make_comment, make_pull
 
 
 @pytest.fixture
@@ -93,3 +94,40 @@ async def test_summarize_refuses_instead_of_truncating(llm) -> None:
     with pytest.raises(DiffTooLargeToSummarizeError):
         await review.summarize_file("acme", "api", 7, "big.py", tier="cheap", token=None)
     assert llm.requests == []
+
+
+async def test_threads_group_replies_and_flag_outdated(review) -> None:
+    github = review._github  # the fake behind the fixture
+    github.comments = [
+        make_comment(1, "src/A.py", 2, "Nit: rename", bot=True),
+        make_comment(2, "src/A.py", 2, "Done", in_reply_to_id=1),
+        make_comment(3, "src/b.py", None, "Old note"),
+    ]
+    threads = await review.list_threads("acme", "api", 7, token=None)
+    assert [(t.id, len(t.comments), t.outdated) for t in threads] == [(1, 2, False), (3, 1, True)]
+    assert threads[0].comments[0].author.is_bot
+
+
+async def test_add_comment_only_on_diff_lines(review) -> None:
+    github = review._github
+    thread = await review.add_comment("acme", "api", 7, path="src/A.py", line=2, side="RIGHT",
+                                      body="  Looks off  ", token="t")  # fmt: skip
+    assert thread.comments[0].body == "Looks off"
+    assert github.posted[0]["commit_id"] == "b" * 40  # latest commit of the PR
+    assert github.posted[0]["token"] == "t"
+
+    for line, side in ((9, "RIGHT"), (1, "LEFT")):  # not in the diff / no old lines (added file)
+        with pytest.raises(InvalidCommentError):
+            await review.add_comment("acme", "api", 7, path="src/A.py", line=line, side=side,
+                                     body="x", token="t")  # fmt: skip
+    with pytest.raises(InvalidCommentError):
+        await review.add_comment("acme", "api", 7, path="src/A.py", line=2, side="RIGHT",
+                                 body="   ", token="t")  # fmt: skip
+
+
+async def test_reply(review) -> None:
+    review._github.comments = [make_comment(1, "src/A.py", 2, "Why?")]
+    reply = await review.reply("acme", "api", 7, 1, body="Because", token="t")
+    assert reply.in_reply_to_id == 1
+    threads = await review.list_threads("acme", "api", 7, token=None)
+    assert [c.body for c in threads[0].comments] == ["Why?", "Because"]

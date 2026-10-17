@@ -19,7 +19,9 @@ export function LinkForm() {
       const resolved = await api.resolveLink(url);
       router.push(resolved.app_path);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't reach the server.");
+      setError(
+        err instanceof ApiError ? err.message : "Couldn't reach the server.",
+      );
       setPending(false);
     }
   }

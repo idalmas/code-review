@@ -132,7 +132,8 @@ def get_viewer_id(session: Annotated[Session | None, Depends(get_session)]) -> s
 
 
 class SignInRequiredError(Exception):
-    """Raised for endpoints that spend the deployment's money (AI) when nobody's signed in."""
+    """Raised when an endpoint needs a signed-in user: writes to GitHub, and anything that
+    spends the deployment's money (AI)."""
 
 
 def require_viewer_when_login_enabled(
@@ -141,3 +142,10 @@ def require_viewer_when_login_enabled(
 ) -> None:
     if auth.is_enabled() and session is None:
         raise SignInRequiredError("Sign in with GitHub to use AI features.")
+
+
+def require_token(token: Annotated[str | None, Depends(get_viewer_token)]) -> str:
+    """For writes to GitHub, which always happen as the signed-in user."""
+    if token is None:
+        raise SignInRequiredError("Sign in with GitHub to comment.")
+    return token

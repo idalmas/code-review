@@ -32,6 +32,33 @@ export interface GitHubUser {
   login: string;
   avatar_url: string | null;
   name: string | null;
+  is_bot: boolean;
+}
+
+export type DiffSide = "LEFT" | "RIGHT";
+
+export interface ReviewComment {
+  id: number;
+  path: string;
+  line: number | null;
+  start_line: number | null;
+  side: DiffSide | null;
+  original_line: number | null;
+  in_reply_to_id: number | null;
+  author: GitHubUser | null;
+  body: string;
+  created_at: string;
+  html_url: string;
+}
+
+export interface CommentThread {
+  id: number;
+  path: string;
+  line: number | null;
+  start_line: number | null;
+  side: DiffSide | null;
+  outdated: boolean;
+  comments: ReviewComment[];
 }
 
 export interface Me {

@@ -13,8 +13,16 @@ export function LoginError() {
     setMessage(error);
     params.delete("login_error");
     const rest = params.toString();
-    history.replaceState(null, "", location.pathname + (rest ? `?${rest}` : "") + location.hash);
+    history.replaceState(
+      null,
+      "",
+      location.pathname + (rest ? `?${rest}` : "") + location.hash,
+    );
   }, []);
   if (!message) return null;
-  return <p className="rounded-md border border-del-fg px-3 py-2 text-sm text-del-fg">{message}</p>;
+  return (
+    <p className="rounded-md border border-del-fg px-3 py-2 text-sm text-del-fg">
+      {message}
+    </p>
+  );
 }

@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from app.services.diff import FileCategory, Hunk
-from app.services.github import FileStatus, PullRequest
+from app.services.github import DiffSide, FileStatus, PullRequest, ReviewComment
 from app.services.llm import Provider, Tier
 
 
@@ -17,6 +17,10 @@ class NothingToSummarizeError(ValueError):
 
 class DiffTooLargeToSummarizeError(ValueError):
     """The diff is bigger than we're willing to send to a model in one request."""
+
+
+class InvalidCommentError(ValueError):
+    """The comment can't be posted as given (empty, too long, or not on a line in the diff)."""
 
 
 class ReviewFile(BaseModel):
@@ -68,3 +72,16 @@ class FileSummary(BaseModel):
     input_tokens: int
     output_tokens: int
     truncated: bool
+
+
+class CommentThread(BaseModel):
+    """A comment on the diff plus its replies. `id` is the first comment's id."""
+
+    id: int
+    path: str
+    line: int | None
+    start_line: int | None
+    side: DiffSide | None
+    # The code it was attached to has changed since; GitHub no longer places it on a line.
+    outdated: bool
+    comments: list[ReviewComment]

@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 
 import { ApiError } from "@/lib/api";
 import type {
+  CommentThread,
   DiffLine,
+  DiffSide,
   FileDiff,
   FileSummary,
   Hunk,
@@ -16,6 +18,8 @@ import type {
 } from "@/lib/types";
 import { useTier } from "@/lib/useTier";
 
+import { CommentComposer } from "./CommentComposer";
+import { CommentThreadView } from "./CommentThreadView";
 import { FileSummaryPanel } from "./FileSummaryPanel";
 import { RenderPanel } from "./RenderPanel";
 import { StressPanel } from "./StressPanel";
@@ -31,8 +35,30 @@ const isBackendFile = (path: string) =>
     path,
   );
 
+export interface Anchor {
+  side: DiffSide;
+  line: number;
+}
+
+const anchorKey = (a: Anchor) => `${a.side}:${a.line}`;
+
+/** Where a new comment on this diff line attaches (GitHub's side/line model). */
+const anchorOf = (line: DiffLine): Anchor | null =>
+  line.kind === "del" && line.old_number != null
+    ? { side: "LEFT", line: line.old_number }
+    : line.new_number != null
+      ? { side: "RIGHT", line: line.new_number }
+      : null;
+
+interface Comments {
+  threads: CommentThread[];
+  onAdd: (path: string, anchor: Anchor, body: string) => Promise<unknown>;
+  onReply: (thread: CommentThread, body: string) => Promise<unknown>;
+}
+
 interface Props {
   file: ReviewFile;
+  comments: Comments;
   viewed: boolean;
   onToggleViewed: () => void;
   loadDiff: (path: string) => Promise<FileDiff>;
@@ -49,6 +75,7 @@ interface Props {
 
 export function FileDiffView({
   file,
+  comments,
   viewed,
   onToggleViewed,
   loadDiff,
@@ -152,18 +179,84 @@ export function FileDiffView({
           .
         </p>
       )}
-      {diff && (
-        <div className="font-mono text-xs leading-5">
-          {diff.hunks.map((hunk, i) => (
-            <HunkView key={i} hunk={hunk} />
-          ))}
-        </div>
-      )}
+      {diff && <DiffBody diff={diff} path={file.path} comments={comments} />}
     </article>
   );
 }
 
-function HunkView({ hunk }: { hunk: Hunk }) {
+function DiffBody({
+  diff,
+  path,
+  comments,
+}: {
+  diff: FileDiff;
+  path: string;
+  comments: Comments;
+}) {
+  const [composing, setComposing] = useState<Anchor | null>(null);
+
+  // Threads attach to the diff line they point at; the rest (outdated, or on lines the
+  // diff doesn't show) are listed above the diff.
+  const shown = new Set(
+    diff.hunks.flatMap((h) =>
+      h.lines.flatMap((l) => [
+        l.new_number != null ? `RIGHT:${l.new_number}` : null,
+        l.old_number != null ? `LEFT:${l.old_number}` : null,
+      ]),
+    ),
+  );
+  const byAnchor = new Map<string, CommentThread[]>();
+  const elsewhere: CommentThread[] = [];
+  for (const t of comments.threads) {
+    const key = t.line != null && t.side ? `${t.side}:${t.line}` : null;
+    if (key && shown.has(key))
+      byAnchor.set(key, [...(byAnchor.get(key) ?? []), t]);
+    else elsewhere.push(t);
+  }
+
+  const context: LineContext = {
+    byAnchor,
+    composing,
+    setComposing,
+    onAdd: (anchor, body) =>
+      comments.onAdd(path, anchor, body).then(() => setComposing(null)),
+    onReply: comments.onReply,
+  };
+  return (
+    <>
+      {elsewhere.length > 0 && (
+        <details className="border-b border-border bg-panel py-1 text-sm">
+          <summary className="cursor-pointer px-4 text-muted">
+            {elsewhere.length} comment{elsewhere.length > 1 ? "s" : ""} on
+            earlier versions or unchanged lines
+          </summary>
+          {elsewhere.map((t) => (
+            <CommentThreadView
+              key={t.id}
+              thread={t}
+              onReply={comments.onReply}
+            />
+          ))}
+        </details>
+      )}
+      <div className="font-mono text-xs leading-5">
+        {diff.hunks.map((hunk, i) => (
+          <HunkView key={i} hunk={hunk} context={context} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+interface LineContext {
+  byAnchor: Map<string, CommentThread[]>;
+  composing: Anchor | null;
+  setComposing: (anchor: Anchor | null) => void;
+  onAdd: (anchor: Anchor, body: string) => Promise<unknown>;
+  onReply: (thread: CommentThread, body: string) => Promise<unknown>;
+}
+
+function HunkView({ hunk, context }: { hunk: Hunk; context: LineContext }) {
   const [collapsed, setCollapsed] = useState(false);
   return (
     // content-visibility lets the browser skip layout for off-screen hunks in huge files.
@@ -175,7 +268,9 @@ function HunkView({ hunk }: { hunk: Hunk }) {
         {collapsed ? "▸" : "▾"} {hunk.header}
       </button>
       {!collapsed &&
-        hunk.lines.map((line, i) => <LineRow key={i} line={line} />)}
+        hunk.lines.map((line, i) => (
+          <LineRow key={i} line={line} context={context} />
+        ))}
     </section>
   );
 }
@@ -190,10 +285,67 @@ const ROW_STYLE: Record<
   meta: { row: "text-muted italic", num: "", sign: "" },
 };
 
-function LineRow({ line }: { line: DiffLine }) {
+function LineRow({ line, context }: { line: DiffLine; context: LineContext }) {
   const style = ROW_STYLE[line.kind];
+  const anchor = anchorOf(line);
+  const threads = [
+    ...(line.new_number != null
+      ? (context.byAnchor.get(`RIGHT:${line.new_number}`) ?? [])
+      : []),
+    ...(line.old_number != null
+      ? (context.byAnchor.get(`LEFT:${line.old_number}`) ?? [])
+      : []),
+  ];
+  const composingHere =
+    anchor &&
+    context.composing &&
+    anchorKey(anchor) === anchorKey(context.composing);
   return (
-    <div className={`grid grid-cols-[3.5rem_3.5rem_1fr] ${style.row}`}>
+    <>
+      <LineContent
+        line={line}
+        style={style}
+        onComment={anchor ? () => context.setComposing(anchor) : undefined}
+      />
+      {threads.map((t) => (
+        <CommentThreadView key={t.id} thread={t} onReply={context.onReply} />
+      ))}
+      {composingHere && (
+        <div className="mx-4 my-2 rounded-md border border-border bg-panel p-3">
+          <CommentComposer
+            onSubmit={(body) => context.onAdd(anchor, body)}
+            onCancel={() => context.setComposing(null)}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+function LineContent({
+  line,
+  style,
+  onComment,
+}: {
+  line: DiffLine;
+  style: (typeof ROW_STYLE)[DiffLine["kind"]];
+  onComment?: () => void;
+}) {
+  return (
+    <div
+      className={`group relative grid grid-cols-[3.5rem_3.5rem_1fr] ${style.row}`}
+    >
+      {onComment && (
+        <button
+          type="button"
+          onClick={onComment}
+          title="Comment on this line"
+          aria-label="Comment on this line"
+          className="absolute top-0 left-0.5 hidden h-5 w-5 items-center justify-center rounded bg-accent text-white group-hover:flex"
+        >
+          +
+        </button>
+      )}
       <span className={`select-none pr-2 text-right text-muted ${style.num}`}>
         {line.old_number ?? ""}
       </span>

@@ -13,6 +13,7 @@ from app.services.render import NotRenderableError, RenderJobNotFoundError, Rend
 from app.services.review import (
     DiffTooLargeToSummarizeError,
     FileNotInPullRequestError,
+    InvalidCommentError,
     NothingToSummarizeError,
 )
 from app.services.stress import (
@@ -34,6 +35,10 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(SignInRequiredError)
     async def _sign_in(_: Request, exc: SignInRequiredError) -> JSONResponse:
         return _error(401, "sign_in_required", str(exc))
+
+    @app.exception_handler(InvalidCommentError)
+    async def _bad_comment(_: Request, exc: InvalidCommentError) -> JSONResponse:
+        return _error(422, "invalid_comment", str(exc))
 
     @app.exception_handler(NothingToSummarizeError)
     async def _nothing(_: Request, exc: NothingToSummarizeError) -> JSONResponse:

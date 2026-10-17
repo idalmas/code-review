@@ -1,9 +1,12 @@
 import type {
+  CommentThread,
+  DiffSide,
   FileDiff,
   FileSummary,
   LLMStatus,
   Me,
   RenderJob,
+  ReviewComment,
   ResolvedLink,
   ReviewSummary,
   StressJob,
@@ -52,6 +55,41 @@ export const api = {
   logout: () => request<void>("/auth/logout", { method: "POST" }),
 
   llmStatus: () => request<LLMStatus>("/llm"),
+
+  listComments: (owner: string, repo: string, number: number) =>
+    request<CommentThread[]>(`${prPath(owner, repo, number)}/comments`),
+
+  addComment: (
+    owner: string,
+    repo: string,
+    number: number,
+    comment: {
+      path: string;
+      line: number;
+      side: DiffSide;
+      body: string;
+      start_line?: number;
+    },
+  ) =>
+    request<CommentThread>(`${prPath(owner, repo, number)}/comments`, {
+      method: "POST",
+      body: JSON.stringify(comment),
+    }),
+
+  reply: (
+    owner: string,
+    repo: string,
+    number: number,
+    threadId: number,
+    body: string,
+  ) =>
+    request<ReviewComment>(
+      `${prPath(owner, repo, number)}/comments/${threadId}/replies`,
+      {
+        method: "POST",
+        body: JSON.stringify({ body }),
+      },
+    ),
 
   renderAvailability: () => request<{ enabled: boolean }>("/renders"),
 

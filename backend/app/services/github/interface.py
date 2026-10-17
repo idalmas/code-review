@@ -4,6 +4,7 @@ from typing import Protocol
 from .types import (
     AuthError,
     ChangedFile,
+    DiffSide,
     FileStatus,
     GitHubError,
     GitHubUser,
@@ -11,11 +12,14 @@ from .types import (
     OAuthExchangeError,
     PullRequest,
     RateLimitError,
+    ReviewComment,
+    ValidationFailedError,
 )
 
 __all__ = [
     "AuthError",
     "ChangedFile",
+    "DiffSide",
     "FileStatus",
     "GitHubError",
     "GitHubService",
@@ -24,6 +28,8 @@ __all__ = [
     "OAuthExchangeError",
     "PullRequest",
     "RateLimitError",
+    "ReviewComment",
+    "ValidationFailedError",
     "MAX_FILES",
     "create_github_service",
 ]
@@ -52,6 +58,37 @@ class GitHubService(Protocol):
 
         Results are cached briefly, so calling this once per file view is cheap.
         """
+        ...
+
+    async def list_review_comments(
+        self, owner: str, repo: str, number: int, *, token: str | None
+    ) -> list[ReviewComment]:
+        """Every comment on the PR's diff, oldest first. Never cached, so new comments
+        (from people or review bots) show up on the next call."""
+        ...
+
+    async def create_review_comment(
+        self,
+        owner: str,
+        repo: str,
+        number: int,
+        *,
+        token: str,
+        commit_id: str,
+        path: str,
+        line: int,
+        side: DiffSide,
+        body: str,
+        start_line: int | None = None,
+    ) -> ReviewComment:
+        """Comment on `line` (or `start_line`..`line`) of `path` as the token's user.
+        Raises `ValidationFailedError` if GitHub rejects the position."""
+        ...
+
+    async def reply_to_review_comment(
+        self, owner: str, repo: str, number: int, comment_id: int, *, token: str, body: str
+    ) -> ReviewComment:
+        """Reply in the thread that `comment_id` belongs to."""
         ...
 
     async def download_tree(

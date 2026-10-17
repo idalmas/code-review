@@ -6,6 +6,7 @@ from app.services.github import (
     NotFoundError,
     OAuthExchangeError,
     PullRequest,
+    ReviewComment,
 )
 from app.services.llm import Completion, CompletionRequest, LLMNotConfiguredError, LLMStatus
 
@@ -37,6 +38,20 @@ def make_pull(**overrides) -> PullRequest:
     return PullRequest(**data)
 
 
+def make_comment(id, path, line, body, *, side="RIGHT", in_reply_to_id=None, bot=False):
+    return ReviewComment(
+        id=id,
+        path=path,
+        line=line,
+        side=side,
+        in_reply_to_id=in_reply_to_id,
+        author=GitHubUser(login="claude[bot]" if bot else "octocat", is_bot=bot),
+        body=body,
+        created_at=datetime(2026, 1, 3, tzinfo=UTC),
+        html_url=f"https://github.com/acme/api/pull/7#discussion_r{id}",
+    )
+
+
 class FakeGitHubService:
     VALID_CODE = "good-code"
     TOKEN = "gho_user_token"
@@ -45,6 +60,8 @@ class FakeGitHubService:
         self.pull = pull
         self.files = files
         self.tokens_seen: list[str | None] = []
+        self.comments = []
+        self.posted = []
         # When set, only this token may read the PR (simulates a private repo).
         self.private_to: str | None = None
 
@@ -69,6 +86,28 @@ class FakeGitHubService:
         for path, text in self.trees[ref].items():
             (dest / path).parent.mkdir(parents=True, exist_ok=True)
             (dest / path).write_text(text)
+
+    comments: list[ReviewComment] = []
+    posted: list[dict] = []
+
+    async def list_review_comments(self, owner, repo, number, *, token) -> list[ReviewComment]:
+        await self.get_pull_request(owner, repo, number, token=token)
+        return list(self.comments)
+
+    async def create_review_comment(self, owner, repo, number, *, token, **fields) -> ReviewComment:
+        self.posted.append({"token": token, **fields})
+        comment = make_comment(len(self.comments) + 100, fields["path"], fields["line"],
+                               fields["body"], side=fields["side"])  # fmt: skip
+        self.comments.append(comment)
+        return comment
+
+    async def reply_to_review_comment(self, owner, repo, number, comment_id, *, token, body):
+        self.posted.append({"token": token, "reply_to": comment_id, "body": body})
+        root = next(c for c in self.comments if c.id == comment_id)
+        reply = make_comment(len(self.comments) + 100, root.path, root.line, body,
+                             in_reply_to_id=comment_id)  # fmt: skip
+        self.comments.append(reply)
+        return reply
 
     async def get_viewer(self, *, token: str) -> GitHubUser:
         return GitHubUser(login="octocat", avatar_url="https://x/a.png", name="Octo Cat")

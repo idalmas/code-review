@@ -23,7 +23,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
       <body className="flex h-full flex-col font-sans">
         <nav className="flex h-11 shrink-0 items-center border-b border-border px-4">
           <Link href="/" className="font-semibold">

@@ -38,6 +38,35 @@ class GitHubUser(BaseModel):
     login: str
     avatar_url: str | None = None
     name: str | None = None
+    # Apps such as Claude Code Review or Greptile post as bot users.
+    is_bot: bool = False
+
+
+class ValidationFailedError(GitHubError):
+    """GitHub refused the write, e.g. a comment on a line that isn't part of the diff."""
+
+    status_code = 422
+    code = "github_validation_failed"
+
+
+DiffSide = Literal["LEFT", "RIGHT"]
+
+
+class ReviewComment(BaseModel):
+    """A comment on a line of the PR's diff."""
+
+    id: int
+    path: str
+    # Current position. None when the code it was on has since changed ("outdated").
+    line: int | None
+    start_line: int | None = None
+    side: DiffSide | None = None
+    original_line: int | None = None
+    in_reply_to_id: int | None = None
+    author: GitHubUser | None
+    body: str
+    created_at: datetime
+    html_url: str
 
 
 class OAuthExchangeError(GitHubError):

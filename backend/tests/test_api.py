@@ -151,3 +151,24 @@ def test_summaries_when_ai_is_off(client, llm) -> None:
     res = client.post("/api/repos/acme/api/pulls/7/summaries", json={"path": "src/A.py"})
     assert res.status_code == 503
     assert res.json()["code"] == "llm_not_configured"
+
+
+def test_commenting_requires_sign_in(client, github) -> None:
+    body = {"path": "src/A.py", "line": 2, "body": "hi"}
+    res = client.post("/api/repos/acme/api/pulls/7/comments", json=body)
+    assert (res.status_code, res.json()["code"]) == (401, "sign_in_required")
+
+    sign_in(client)
+    res = client.post("/api/repos/acme/api/pulls/7/comments", json=body)
+    assert res.status_code == 201
+    thread = res.json()
+    assert github.posted[0]["token"] == FakeGitHubService.TOKEN
+
+    res = client.post(f"/api/repos/acme/api/pulls/7/comments/{thread['id']}/replies",
+                      json={"body": "more"})  # fmt: skip
+    assert res.status_code == 201
+    threads = client.get("/api/repos/acme/api/pulls/7/comments").json()
+    assert [c["body"] for c in threads[0]["comments"]] == ["hi", "more"]
+
+    res = client.post("/api/repos/acme/api/pulls/7/comments", json={**body, "line": 99})
+    assert (res.status_code, res.json()["code"]) == (422, "invalid_comment")

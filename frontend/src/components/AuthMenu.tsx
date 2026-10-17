@@ -14,7 +14,13 @@ export function AuthMenu() {
     <div className="flex items-center gap-3 text-sm">
       {me.user.avatar_url && (
         // eslint-disable-next-line @next/next/no-img-element -- tiny avatar from GitHub's CDN
-        <img src={me.user.avatar_url} alt="" width={24} height={24} className="rounded-full" />
+        <img
+          src={me.user.avatar_url}
+          alt=""
+          width={24}
+          height={24}
+          className="rounded-full"
+        />
       )}
       <span>{me.user.login}</span>
       <button

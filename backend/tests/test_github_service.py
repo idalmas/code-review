@@ -1,10 +1,17 @@
 import io
+import json
 import tarfile
 
 import httpx
 import pytest
 
-from app.services.github import GitHubError, NotFoundError, OAuthExchangeError, RateLimitError
+from app.services.github import (
+    GitHubError,
+    NotFoundError,
+    OAuthExchangeError,
+    RateLimitError,
+    ValidationFailedError,
+)
 from app.services.github.impl import GitHubServiceImpl, _extract  # tests may reach into impl
 
 PR_JSON = {
@@ -163,3 +170,29 @@ def _file(name: str) -> tarfile.TarInfo:
     info = tarfile.TarInfo(name)
     info.size = 1
     return info
+
+
+async def test_review_comments_round_trip() -> None:
+    comment = {"id": 5, "path": "a.py", "line": 3, "side": "RIGHT", "in_reply_to_id": None,
+               "user": {"login": "greptile-apps[bot]", "type": "Bot"}, "body": "Hm",
+               "created_at": "2026-01-01T00:00:00Z", "html_url": "https://x/5"}  # fmt: skip
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(200, json=[comment])
+        if json.loads(request.content).get("line") == 99:
+            errors = ["line must be part of the diff"]
+            return httpx.Response(422, json={"message": "Validation Failed", "errors": errors})
+        return httpx.Response(201, json=comment)
+
+    service, seen = make_service(handler)
+    [listed] = await service.list_review_comments("acme", "api", 7, token=None)
+    assert listed.author.is_bot and listed.line == 3
+
+    await service.create_review_comment("acme", "api", 7, token="t", commit_id="c", path="a.py",
+                                        line=3, side="RIGHT", body="x")  # fmt: skip
+    assert seen[-1].headers["Authorization"] == "Bearer t"
+    with pytest.raises(ValidationFailedError, match="part of the diff"):
+        await service.create_review_comment(
+            "acme", "api", 7, token="t", commit_id="c", path="a.py", line=99, side="RIGHT", body="x"
+        )

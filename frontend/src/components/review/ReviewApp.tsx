@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { buildTree, flattenTree } from "@/lib/fileTree";
 import type {
+  CommentThread,
   FileDiff,
   FileSummary,
   LLMStatus,
@@ -16,7 +17,7 @@ import { useViewedFiles } from "@/lib/useViewedFiles";
 
 import { SignInButton } from "../SignInButton";
 
-import { FileDiffView } from "./FileDiffView";
+import { type Anchor, FileDiffView } from "./FileDiffView";
 import { FileTree } from "./FileTree";
 import { ReviewHeader } from "./ReviewHeader";
 
@@ -37,6 +38,7 @@ export function ReviewApp({ owner, repo, number }: Props) {
   const filterRef = useRef<HTMLInputElement>(null);
   const diffCache = useRef(new Map<string, Promise<FileDiff>>());
   const summaryCache = useRef(new Map<string, Promise<FileSummary>>());
+  const [threads, setThreads] = useState<CommentThread[]>([]);
   const renderJobs = useRef(new Map<string, string>());
   const stressJobs = useRef(new Map<string, string>());
   const [stressEnabled, setStressEnabled] = useState(false);
@@ -96,6 +98,48 @@ export function ReviewApp({ owner, repo, number }: Props) {
       cancelled = true;
     };
   }, [owner, repo, number]);
+
+  // Review threads (people and review bots). Refreshed every minute while the tab is open.
+  const loadThreads = useCallback(
+    () => api.listComments(owner, repo, number).then(setThreads, () => {}),
+    [owner, repo, number],
+  );
+  useEffect(() => {
+    loadThreads();
+    const timer = setInterval(
+      () => document.visibilityState === "visible" && loadThreads(),
+      60_000,
+    );
+    return () => clearInterval(timer);
+  }, [loadThreads]);
+
+  const addComment = useCallback(
+    async (path: string, anchor: Anchor, body: string) => {
+      const thread = await api.addComment(owner, repo, number, {
+        path,
+        ...anchor,
+        body,
+      });
+      setThreads((current) => [...current, thread]);
+    },
+    [owner, repo, number],
+  );
+  const replyToThread = useCallback(
+    async (thread: CommentThread, body: string) => {
+      const reply = await api.reply(owner, repo, number, thread.id, body);
+      setThreads((current) =>
+        current.map((t) =>
+          t.id === thread.id ? { ...t, comments: [...t.comments, reply] } : t,
+        ),
+      );
+    },
+    [owner, repo, number],
+  );
+  const threadsByPath = useMemo(() => {
+    const map = new Map<string, CommentThread[]>();
+    for (const t of threads) map.set(t.path, [...(map.get(t.path) ?? []), t]);
+    return map;
+  }, [threads]);
 
   const loadDiff = useCallback(
     (path: string) => {
@@ -277,6 +321,7 @@ export function ReviewApp({ owner, repo, number }: Props) {
             nodes={tree}
             selectedPath={selectedPath}
             isViewed={isViewed}
+            commentCount={(path) => threadsByPath.get(path)?.length ?? 0}
             onSelect={select}
           />
           <p className="border-t border-border p-2 text-xs text-muted">
@@ -289,6 +334,11 @@ export function ReviewApp({ owner, repo, number }: Props) {
             <FileDiffView
               key={selected.path}
               file={selected}
+              comments={{
+                threads: threadsByPath.get(selected.path) ?? [],
+                onAdd: addComment,
+                onReply: replyToThread,
+              }}
               viewed={isViewed(selected)}
               onToggleViewed={toggleViewed}
               loadDiff={loadDiff}

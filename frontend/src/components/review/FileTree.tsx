@@ -9,6 +9,7 @@ interface Props {
   nodes: TreeNode[];
   selectedPath: string | null;
   isViewed: (f: ReviewFile) => boolean;
+  commentCount: (path: string) => number;
   onSelect: (path: string) => void;
 }
 
@@ -66,6 +67,7 @@ function FileRow({
   depth,
   selectedPath,
   isViewed,
+  commentCount,
   onSelect,
 }: Omit<Props, "nodes"> & {
   node: Extract<TreeNode, { kind: "file" }>;
@@ -103,6 +105,11 @@ function FileRow({
       )}
       {file.is_noise && (
         <span className="text-xs text-muted">{file.category}</span>
+      )}
+      {commentCount(file.path) > 0 && (
+        <span className="text-xs text-muted" title="Comment threads">
+          💬{commentCount(file.path)}
+        </span>
       )}
       <span className="ml-auto shrink-0 font-mono text-xs">
         <span className="text-add-fg">+{file.additions}</span>{" "}

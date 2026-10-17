@@ -19,6 +19,8 @@ from .types import (
     OAuthExchangeError,
     PullRequest,
     RateLimitError,
+    ReviewComment,
+    ValidationFailedError,
 )
 
 _T = TypeVar("_T")
@@ -109,6 +111,55 @@ class GitHubServiceImpl:
         key = ("files", _token_key(token), owner, repo, number)
         return await self._cache.get_or_fetch(key, fetch)
 
+    async def list_review_comments(
+        self, owner: str, repo: str, number: int, *, token: str | None
+    ) -> list[ReviewComment]:
+        comments: list[ReviewComment] = []
+        for page in range(1, _MAX_PAGES + 1):
+            batch = await self._get_json(
+                f"/repos/{owner}/{repo}/pulls/{number}/comments",
+                token=token,
+                params={"per_page": _PER_PAGE, "page": page, "sort": "created", "direction": "asc"},
+            )
+            comments.extend(_to_review_comment(c) for c in batch)
+            if len(batch) < _PER_PAGE:
+                break
+        return comments
+
+    async def create_review_comment(
+        self,
+        owner: str,
+        repo: str,
+        number: int,
+        *,
+        token: str,
+        commit_id: str,
+        path: str,
+        line: int,
+        side: str,
+        body: str,
+        start_line: int | None = None,
+    ) -> ReviewComment:
+        payload: dict[str, Any] = {
+            "body": body, "commit_id": commit_id, "path": path, "line": line, "side": side,
+        }  # fmt: skip
+        if start_line is not None and start_line < line:
+            payload |= {"start_line": start_line, "start_side": side}
+        data = await self._post_json(
+            f"/repos/{owner}/{repo}/pulls/{number}/comments", token=token, payload=payload
+        )
+        return _to_review_comment(data)
+
+    async def reply_to_review_comment(
+        self, owner: str, repo: str, number: int, comment_id: int, *, token: str, body: str
+    ) -> ReviewComment:
+        data = await self._post_json(
+            f"/repos/{owner}/{repo}/pulls/{number}/comments/{comment_id}/replies",
+            token=token,
+            payload={"body": body},
+        )
+        return _to_review_comment(data)
+
     async def download_tree(
         self, owner: str, repo: str, ref: str, *, token: str | None, dest: Path, max_bytes: int
     ) -> None:
@@ -175,6 +226,17 @@ class GitHubServiceImpl:
     async def aclose(self) -> None:
         await self._client.aclose()
 
+    async def _post_json(self, path: str, *, token: str, payload: dict) -> Any:
+        try:
+            response = await self._client.post(
+                path, json=payload, headers={"Authorization": f"Bearer {token}"}
+            )
+        except httpx.HTTPError as exc:
+            raise GitHubError(f"Couldn't reach GitHub: {exc}") from exc
+        if response.is_success:
+            return response.json()
+        _raise_for_status(response)
+
     async def _get_json(self, path: str, *, token: str | None, params: dict | None = None) -> Any:
         headers = {"Authorization": f"Bearer {token}"} if token else None
         try:
@@ -235,7 +297,41 @@ def _raise_for_status(response: httpx.Response) -> None:
         )
     if status in (401, 403):
         raise AuthError(f"GitHub refused the request: {message}")
+    if status == 422:
+        errors = (
+            response.json().get("errors")
+            if "json" in response.headers.get("content-type", "")
+            else None
+        )
+        detail = "; ".join(
+            str(e.get("message", e)) if isinstance(e, dict) else str(e) for e in errors or []
+        )
+        raise ValidationFailedError(f"GitHub rejected it: {detail or message}")
     raise GitHubError(f"GitHub returned {status}: {message}")
+
+
+def _to_user(data: dict[str, Any] | None) -> GitHubUser | None:
+    if not data:
+        return None
+    return GitHubUser(
+        login=data["login"], avatar_url=data.get("avatar_url"), is_bot=data.get("type") == "Bot"
+    )
+
+
+def _to_review_comment(data: dict[str, Any]) -> ReviewComment:
+    return ReviewComment(
+        id=data["id"],
+        path=data["path"],
+        line=data.get("line"),
+        start_line=data.get("start_line"),
+        side=data.get("side"),
+        original_line=data.get("original_line"),
+        in_reply_to_id=data.get("in_reply_to_id"),
+        author=_to_user(data.get("user")),
+        body=data.get("body") or "",
+        created_at=data["created_at"],
+        html_url=data["html_url"],
+    )
 
 
 def _to_pull_request(owner: str, repo: str, data: dict[str, Any]) -> PullRequest:
@@ -249,7 +345,7 @@ def _to_pull_request(owner: str, repo: str, data: dict[str, Any]) -> PullRequest
         state=data["state"],
         draft=data.get("draft", False),
         merged=data.get("merged", False),
-        author=GitHubUser(login=user["login"], avatar_url=user.get("avatar_url")) if user else None,
+        author=_to_user(user),
         base_ref=data["base"]["ref"],
         head_ref=data["head"]["ref"],
         base_sha=data["base"]["sha"],
