@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -12,6 +13,7 @@ from .types import (
     GitHubError,
     GitHubUser,
     NotFoundError,
+    OAuthExchangeError,
     PullRequest,
     RateLimitError,
 )
@@ -57,36 +59,43 @@ class GitHubServiceImpl:
     def __init__(
         self,
         *,
-        token: str | None,
         api_url: str,
+        web_url: str,
         cache_ttl_seconds: int,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "code-review-tool",
-        }
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
         self._client = httpx.AsyncClient(
-            base_url=api_url, headers=headers, timeout=30.0, transport=transport
+            base_url=api_url,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "User-Agent": "code-review-tool",
+            },
+            timeout=30.0,
+            transport=transport,
         )
+        self._web_url = web_url.rstrip("/")
         self._cache = _TTLCache(cache_ttl_seconds)
 
-    async def get_pull_request(self, owner: str, repo: str, number: int) -> PullRequest:
+    async def get_pull_request(
+        self, owner: str, repo: str, number: int, *, token: str | None
+    ) -> PullRequest:
         async def fetch() -> PullRequest:
-            data = await self._get_json(f"/repos/{owner}/{repo}/pulls/{number}")
+            data = await self._get_json(f"/repos/{owner}/{repo}/pulls/{number}", token=token)
             return _to_pull_request(owner, repo, data)
 
-        return await self._cache.get_or_fetch(("pr", owner, repo, number), fetch)
+        key = ("pr", _token_key(token), owner, repo, number)
+        return await self._cache.get_or_fetch(key, fetch)
 
-    async def list_files(self, owner: str, repo: str, number: int) -> list[ChangedFile]:
+    async def list_files(
+        self, owner: str, repo: str, number: int, *, token: str | None
+    ) -> list[ChangedFile]:
         async def fetch() -> list[ChangedFile]:
             files: list[ChangedFile] = []
             for page in range(1, _MAX_PAGES + 1):
                 batch = await self._get_json(
                     f"/repos/{owner}/{repo}/pulls/{number}/files",
+                    token=token,
                     params={"per_page": _PER_PAGE, "page": page},
                 )
                 files.extend(ChangedFile.model_validate(item) for item in batch)
@@ -94,20 +103,57 @@ class GitHubServiceImpl:
                     break
             return files
 
-        return await self._cache.get_or_fetch(("files", owner, repo, number), fetch)
+        key = ("files", _token_key(token), owner, repo, number)
+        return await self._cache.get_or_fetch(key, fetch)
+
+    async def get_viewer(self, *, token: str) -> GitHubUser:
+        data = await self._get_json("/user", token=token)
+        return GitHubUser(
+            login=data["login"], avatar_url=data.get("avatar_url"), name=data.get("name")
+        )
+
+    async def exchange_oauth_code(
+        self, *, client_id: str, client_secret: str, code: str, redirect_uri: str
+    ) -> str:
+        try:
+            response = await self._client.post(
+                f"{self._web_url}/login/oauth/access_token",
+                headers={"Accept": "application/json"},
+                data={
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "code": code,
+                    "redirect_uri": redirect_uri,
+                },
+            )
+        except httpx.HTTPError as exc:
+            raise GitHubError(f"Couldn't reach GitHub: {exc}") from exc
+        # GitHub answers 200 even for bad codes, with an `error` field instead of a token.
+        body = response.json() if response.is_success else {}
+        token = body.get("access_token")
+        if not token:
+            reason = body.get("error_description") or body.get("error") or response.status_code
+            raise OAuthExchangeError(f"GitHub sign-in failed: {reason}")
+        return token
 
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def _get_json(self, path: str, params: dict | None = None) -> Any:
+    async def _get_json(self, path: str, *, token: str | None, params: dict | None = None) -> Any:
+        headers = {"Authorization": f"Bearer {token}"} if token else None
         try:
-            response = await self._client.get(path, params=params)
+            response = await self._client.get(path, params=params, headers=headers)
         except httpx.HTTPError as exc:
             raise GitHubError(f"Couldn't reach GitHub: {exc}") from exc
 
         if response.is_success:
             return response.json()
         _raise_for_status(response)
+
+
+def _token_key(token: str | None) -> str:
+    # Never keep raw tokens in cache keys; a hash still separates users.
+    return hashlib.sha256(token.encode()).hexdigest() if token else "anonymous"
 
 
 def _raise_for_status(response: httpx.Response) -> None:
@@ -121,11 +167,12 @@ def _raise_for_status(response: httpx.Response) -> None:
         reset = response.headers.get("x-ratelimit-reset")
         reset_at = datetime.fromtimestamp(int(reset), tz=UTC) if reset else None
         raise RateLimitError(
-            "GitHub rate limit reached. Set GITHUB_TOKEN to raise it.", reset_at=reset_at
+            "GitHub rate limit reached. Sign in with GitHub to raise it.", reset_at=reset_at
         )
     if status == 404:
         raise NotFoundError(
-            "Pull request not found. If the repo is private, set GITHUB_TOKEN with access to it."
+            "Pull request not found. If the repo is private, sign in with a GitHub account "
+            "that can see it."
         )
     if status in (401, 403):
         raise AuthError(f"GitHub refused the request: {message}")

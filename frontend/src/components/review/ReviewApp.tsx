@@ -5,7 +5,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { buildTree, flattenTree } from "@/lib/fileTree";
 import type { FileDiff, ReviewSummary } from "@/lib/types";
+import { useMe } from "@/lib/useMe";
 import { useViewedFiles } from "@/lib/useViewedFiles";
+
+import { SignInButton } from "../SignInButton";
 
 import { FileDiffView } from "./FileDiffView";
 import { FileTree } from "./FileTree";
@@ -19,7 +22,8 @@ interface Props {
 
 export function ReviewApp({ owner, repo, number }: Props) {
   const [summary, setSummary] = useState<ReviewSummary | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiError | Error | null>(null);
+  const me = useMe();
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [hideNoise, setHideNoise] = useState(true);
@@ -33,7 +37,7 @@ export function ReviewApp({ owner, repo, number }: Props) {
     let cancelled = false;
     api.getReview(owner, repo, number).then(
       (data) => !cancelled && setSummary(data),
-      (err) => !cancelled && setError(err instanceof ApiError ? err.message : String(err)),
+      (err) => !cancelled && setError(err instanceof Error ? err : new Error(String(err))),
     );
     return () => {
       cancelled = true;
@@ -130,10 +134,16 @@ export function ReviewApp({ owner, repo, number }: Props) {
   }, [move, toggleViewed]);
 
   if (error) {
+    const signInMightHelp =
+      error instanceof ApiError &&
+      ["not_found", "unauthorized", "rate_limited"].includes(error.code) &&
+      me?.login_enabled &&
+      !me.user;
     return (
-      <div className="mx-auto max-w-xl space-y-2 p-8">
+      <div className="mx-auto max-w-xl space-y-3 p-8">
         <h1 className="text-lg font-semibold">Couldn&apos;t load this pull request</h1>
-        <p className="text-muted">{error}</p>
+        <p className="text-muted">{error.message}</p>
+        {signInMightHelp && <SignInButton />}
       </div>
     );
   }

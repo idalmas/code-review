@@ -37,6 +37,14 @@ class RateLimitError(GitHubError):
 class GitHubUser(BaseModel):
     login: str
     avatar_url: str | None = None
+    name: str | None = None
+
+
+class OAuthExchangeError(GitHubError):
+    """GitHub rejected an OAuth authorization code (expired, reused, or bad credentials)."""
+
+    status_code = 400
+    code = "oauth_exchange_failed"
 
 
 class PullRequest(BaseModel):

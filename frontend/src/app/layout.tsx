@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
+
+import { AuthMenu } from "@/components/AuthMenu";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,7 +24,17 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="flex h-full flex-col font-sans">{children}</body>
+      <body className="flex h-full flex-col font-sans">
+        <nav className="flex h-11 shrink-0 items-center border-b border-border px-4">
+          <Link href="/" className="font-semibold">
+            Code Review
+          </Link>
+          <div className="ml-auto">
+            <AuthMenu />
+          </div>
+        </nav>
+        {children}
+      </body>
     </html>
   );
 }

@@ -13,7 +13,7 @@ def review():
 
 
 async def test_summary_sorts_classifies_and_counts(review) -> None:
-    summary = await review.get_summary("acme", "api", 7)
+    summary = await review.get_summary("acme", "api", 7, token=None)
 
     assert [f.path for f in summary.files] == [
         "logo.png",
@@ -34,20 +34,20 @@ async def test_summary_sorts_classifies_and_counts(review) -> None:
 
 
 async def test_file_diff_parses_hunks(review) -> None:
-    diff = await review.get_file_diff("acme", "api", 7, "src/A.py")
+    diff = await review.get_file_diff("acme", "api", 7, "src/A.py", token=None)
     assert diff.unavailable_reason is None
     assert [line.content for line in diff.hunks[0].lines] == ["x", "y"]
 
 
 async def test_file_diff_explains_missing_patches(review) -> None:
     assert (
-        await review.get_file_diff("acme", "api", 7, "package-lock.json")
+        await review.get_file_diff("acme", "api", 7, "package-lock.json", token=None)
     ).unavailable_reason == ("too_large")
-    assert (await review.get_file_diff("acme", "api", 7, "logo.png")).unavailable_reason == (
-        "binary_or_empty"
-    )
+    assert (
+        await review.get_file_diff("acme", "api", 7, "logo.png", token=None)
+    ).unavailable_reason == ("binary_or_empty")
 
 
 async def test_file_diff_unknown_path(review) -> None:
     with pytest.raises(FileNotInPullRequestError):
-        await review.get_file_diff("acme", "api", 7, "nope.py")
+        await review.get_file_diff("acme", "api", 7, "nope.py", token=None)

@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.deps import get_github_service
 from app.api.errors import register_error_handlers
-from app.api.routes import links, pulls
+from app.api.routes import auth, links, pulls
 from app.config import get_settings
 
 
@@ -22,6 +22,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
         allow_methods=["GET", "POST"],
+        allow_credentials=True,
         allow_headers=["*"],
     )
     register_error_handlers(app)
@@ -30,6 +31,7 @@ def create_app() -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    app.include_router(auth.router, prefix="/api")
     app.include_router(links.router, prefix="/api")
     app.include_router(pulls.router, prefix="/api")
     return app

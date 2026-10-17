@@ -28,6 +28,17 @@ export interface ResolvedLink {
   github_url: string;
 }
 
+export interface GitHubUser {
+  login: string;
+  avatar_url: string | null;
+  name: string | null;
+}
+
+export interface Me {
+  login_enabled: boolean;
+  user: GitHubUser | null;
+}
+
 export interface PullRequest {
   owner: string;
   repo: string;
@@ -37,7 +48,7 @@ export interface PullRequest {
   state: "open" | "closed";
   draft: boolean;
   merged: boolean;
-  author: { login: string; avatar_url: string | null } | null;
+  author: GitHubUser | null;
   base_ref: string;
   head_ref: string;
   base_sha: string;

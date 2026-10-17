@@ -25,12 +25,18 @@ __all__ = [
 
 
 class ReviewService(Protocol):
-    async def get_summary(self, owner: str, repo: str, number: int) -> ReviewSummary:
-        """PR metadata plus every changed file (without hunks), classified and in
+    async def get_summary(
+        self, owner: str, repo: str, number: int, *, token: str | None
+    ) -> ReviewSummary:
+        """`token` is the viewer's GitHub token (None = anonymous, public repos only).
+
+        PR metadata plus every changed file (without hunks), classified and in
         tree order. Cheap enough to load up front even for thousands of files."""
         ...
 
-    async def get_file_diff(self, owner: str, repo: str, number: int, path: str) -> FileDiff:
+    async def get_file_diff(
+        self, owner: str, repo: str, number: int, path: str, *, token: str | None
+    ) -> FileDiff:
         """Parsed hunks for one file, so the UI can load large PRs lazily.
         Raises `FileNotInPullRequestError` if the PR didn't touch `path`."""
         ...

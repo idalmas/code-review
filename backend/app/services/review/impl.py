@@ -13,10 +13,12 @@ class ReviewServiceImpl:
         self._github = github
         self._diff = diff
 
-    async def get_summary(self, owner: str, repo: str, number: int) -> ReviewSummary:
+    async def get_summary(
+        self, owner: str, repo: str, number: int, *, token: str | None
+    ) -> ReviewSummary:
         pull, changed = await asyncio.gather(
-            self._github.get_pull_request(owner, repo, number),
-            self._github.list_files(owner, repo, number),
+            self._github.get_pull_request(owner, repo, number, token=token),
+            self._github.list_files(owner, repo, number, token=token),
         )
         files = sorted(
             (self._to_review_file(pull, f) for f in changed),
@@ -29,10 +31,12 @@ class ReviewServiceImpl:
             truncated=len(changed) >= MAX_FILES and pull.changed_files > len(changed),
         )
 
-    async def get_file_diff(self, owner: str, repo: str, number: int, path: str) -> FileDiff:
+    async def get_file_diff(
+        self, owner: str, repo: str, number: int, path: str, *, token: str | None
+    ) -> FileDiff:
         pull, changed = await asyncio.gather(
-            self._github.get_pull_request(owner, repo, number),
-            self._github.list_files(owner, repo, number),
+            self._github.get_pull_request(owner, repo, number, token=token),
+            self._github.list_files(owner, repo, number, token=token),
         )
         match = next((f for f in changed if f.filename == path), None)
         if match is None:

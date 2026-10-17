@@ -1,6 +1,12 @@
 from datetime import UTC, datetime
 
-from app.services.github import ChangedFile, NotFoundError, PullRequest
+from app.services.github import (
+    ChangedFile,
+    GitHubUser,
+    NotFoundError,
+    OAuthExchangeError,
+    PullRequest,
+)
 
 
 def make_pull(**overrides) -> PullRequest:
@@ -31,18 +37,39 @@ def make_pull(**overrides) -> PullRequest:
 
 
 class FakeGitHubService:
+    VALID_CODE = "good-code"
+    TOKEN = "gho_user_token"
+
     def __init__(self, pull: PullRequest, files: list[ChangedFile]) -> None:
         self.pull = pull
         self.files = files
+        self.tokens_seen: list[str | None] = []
+        # When set, only this token may read the PR (simulates a private repo).
+        self.private_to: str | None = None
 
-    async def get_pull_request(self, owner: str, repo: str, number: int) -> PullRequest:
-        if number != self.pull.number:
+    async def get_pull_request(
+        self, owner: str, repo: str, number: int, *, token: str | None
+    ) -> PullRequest:
+        self.tokens_seen.append(token)
+        if number != self.pull.number or (self.private_to and token != self.private_to):
             raise NotFoundError("Pull request not found.")
         return self.pull
 
-    async def list_files(self, owner: str, repo: str, number: int) -> list[ChangedFile]:
-        await self.get_pull_request(owner, repo, number)
+    async def list_files(
+        self, owner: str, repo: str, number: int, *, token: str | None
+    ) -> list[ChangedFile]:
+        await self.get_pull_request(owner, repo, number, token=token)
         return self.files
+
+    async def get_viewer(self, *, token: str) -> GitHubUser:
+        return GitHubUser(login="octocat", avatar_url="https://x/a.png", name="Octo Cat")
+
+    async def exchange_oauth_code(
+        self, *, client_id: str, client_secret: str, code: str, redirect_uri: str
+    ) -> str:
+        if code != self.VALID_CODE:
+            raise OAuthExchangeError("bad_verification_code")
+        return self.TOKEN
 
     async def aclose(self) -> None:
         pass

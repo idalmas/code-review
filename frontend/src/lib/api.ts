@@ -1,4 +1,4 @@
-import type { FileDiff, ResolvedLink, ReviewSummary } from "./types";
+import type { FileDiff, Me, ResolvedLink, ReviewSummary } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -15,6 +15,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
+  if (res.status === 204) return undefined as T;
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     const detail = typeof body.detail === "string" ? body.detail : res.statusText;
@@ -26,7 +27,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 const prPath = (owner: string, repo: string, number: number) =>
   `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${number}`;
 
+/** Full-page navigation (not fetch): GitHub's consent screen can't be shown in a fetch. */
+export const loginUrl = (returnTo: string) =>
+  `/api/auth/login?return_to=${encodeURIComponent(returnTo)}`;
+
 export const api = {
+  me: () => request<Me>("/auth/me"),
+
+  logout: () => request<void>("/auth/logout", { method: "POST" }),
+
   resolveLink: (url: string) =>
     request<ResolvedLink>("/links/resolve", { method: "POST", body: JSON.stringify({ url }) }),
 

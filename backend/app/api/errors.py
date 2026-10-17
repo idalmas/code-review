@@ -3,6 +3,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app.services.auth import LoginNotConfiguredError
 from app.services.diff import PatchParseError
 from app.services.github import GitHubError, RateLimitError
 from app.services.links import InvalidLinkError
@@ -17,6 +18,10 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(InvalidLinkError)
     async def _invalid_link(_: Request, exc: InvalidLinkError) -> JSONResponse:
         return _error(400, "invalid_link", str(exc))
+
+    @app.exception_handler(LoginNotConfiguredError)
+    async def _login_off(_: Request, exc: LoginNotConfiguredError) -> JSONResponse:
+        return _error(503, "login_not_configured", str(exc))
 
     @app.exception_handler(FileNotInPullRequestError)
     async def _file_missing(_: Request, exc: FileNotInPullRequestError) -> JSONResponse:
