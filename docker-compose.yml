@@ -7,13 +7,20 @@ services:
     env_file: backend/.env
     restart: unless-stopped
     # Not published: only the web app talks to it, over the internal network.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   web:
     build:
       context: ./frontend
       args:
         BACKEND_URL: http://backend:8000
-    depends_on: [backend]
+    depends_on:
+      backend:
+        condition: service_healthy
     restart: unless-stopped
     ports:
       - "3000:3000"
