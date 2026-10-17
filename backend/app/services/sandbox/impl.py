@@ -8,7 +8,7 @@ from .types import SandboxResult, SandboxUnavailableError
 
 _OUTPUT_TAIL = 20_000
 # Containers never run as root. If the backend itself runs as root, jobs run as this
-# unprivileged user instead (the renderer image's own user), which then owns the job folder.
+# unprivileged user instead (the sandbox image's own user), which then owns the job folder.
 _FALLBACK_UID = 1000
 
 
@@ -70,6 +70,8 @@ class SandboxServiceImpl:
                 args += ["-v", f"{self._ca_file}:/etc/cr-extra-ca.crt:ro"]
                 args += ["-e", "NODE_EXTRA_CA_CERTS=/etc/cr-extra-ca.crt"]
                 args += ["-e", "npm_config_cafile=/etc/cr-extra-ca.crt"]
+                # uv/pip read SSL_CERT_FILE, which replaces the trust store: use a full bundle.
+                args += ["-e", "SSL_CERT_FILE=/etc/cr-extra-ca.crt"]
         else:
             args += ["--network", "none"]
         # Arguments go straight to exec (no shell), so paths and names can't inject commands.

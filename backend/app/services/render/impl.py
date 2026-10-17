@@ -3,7 +3,6 @@ import hashlib
 import json
 import re
 import shutil
-import tarfile
 import time
 import uuid
 from datetime import UTC, datetime
@@ -37,7 +36,6 @@ _CSS_CANDIDATES = (
     "src/App.css",
 )
 _MAX_TARBALL = 300 * 1024 * 1024
-_MAX_EXTRACTED = 1024 * 1024 * 1024
 _MAX_SOURCE_CHARS = 60_000
 _JOB_TTL_SECONDS = 2 * 3600
 _HARNESS_ATTEMPTS = 2
@@ -111,7 +109,7 @@ class RenderServiceImpl:
     ) -> RenderJob:
         if not self.is_enabled():
             raise RenderUnavailableError(
-                "Rendering needs Docker (RENDER_ENABLED=true) and an LLM API key."
+                "Rendering needs Docker (SANDBOX_ENABLED=true) and an LLM API key."
             )
         if not _COMPONENT_RE.search(path) or _SKIP_RE.search(path):
             raise NotRenderableError("Only React component files (.tsx/.jsx) can be rendered.")
@@ -201,7 +199,10 @@ class RenderServiceImpl:
 
         job.status = "downloading"
         await asyncio.gather(*(
-            self._fetch_tree(owner, repo, shas[v], token, directory / v) for v in versions
+            self._github.download_tree(
+                owner, repo, shas[v], token=token, dest=directory / v, max_bytes=_MAX_TARBALL
+            )
+            for v in versions
         ))  # fmt: skip
 
         spec_versions: dict[str, dict] = {}
@@ -236,7 +237,7 @@ class RenderServiceImpl:
         job.status = "installing"
         result = await self._sandbox.run(
             image=self._image,
-            command=["/renderer/install.sh", *dict.fromkeys(install_dirs)],
+            command=["/sandbox/install.sh", *dict.fromkeys(install_dirs)],
             workdir=directory,
             network=True,
             timeout_seconds=600,
@@ -260,7 +261,7 @@ class RenderServiceImpl:
             job.status = "rendering"
             result = await self._sandbox.run(
                 image=self._image,
-                command=["node", "/renderer/render.mjs", "/work", "spec.json"],
+                command=["node", "/sandbox/render.mjs", "/work", "spec.json"],
                 workdir=directory,
                 network=False,
                 timeout_seconds=300,
@@ -275,16 +276,6 @@ class RenderServiceImpl:
         job.status = "done"
         if feedback is not None:
             job.message = "The component couldn't be rendered cleanly; see errors per state."
-
-    async def _fetch_tree(
-        self, owner: str, repo: str, sha: str, token: str | None, dest: Path
-    ) -> None:
-        archive = dest.with_suffix(".tar.gz")
-        await self._github.download_tarball(
-            owner, repo, sha, token=token, dest=archive, max_bytes=_MAX_TARBALL
-        )
-        await asyncio.to_thread(_extract, archive, dest)
-        archive.unlink()
 
     async def _write_harness(
         self, path: str, source: str, deps: list[str], tier: Tier, feedback: str | None
@@ -327,29 +318,6 @@ def _find_up(start: Path, stop: Path, found) -> Path | None:
         if current == stop or stop not in current.parents:
             return None
         current = current.parent
-
-
-def _extract(archive: Path, dest: Path) -> None:
-    """Unpack GitHub's tarball (one top-level folder) safely: the `data` filter rejects
-    absolute paths, `..`, device files and links that point outside `dest`."""
-    total = 0
-
-    def strip_top(member: tarfile.TarInfo, path: str) -> tarfile.TarInfo | None:
-        nonlocal total
-        _, _, rest = member.name.partition("/")
-        if not rest:
-            return None
-        total += member.size
-        if total > _MAX_EXTRACTED:
-            raise NotRenderableError("Repository is too large to render.")
-        changes = {"name": rest}
-        if member.islnk():
-            changes["linkname"] = member.linkname.partition("/")[2]
-        return tarfile.data_filter(member.replace(**changes, deep=False), path)
-
-    dest.mkdir(parents=True)
-    with tarfile.open(archive, "r:gz") as tar:
-        tar.extractall(dest, filter=strip_top)
 
 
 def _dependency_names(package_json: Path) -> list[str]:

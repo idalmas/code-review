@@ -41,7 +41,10 @@ function DirRow({
   node,
   depth,
   ...rest
-}: Omit<Props, "nodes"> & { node: Extract<TreeNode, { kind: "dir" }>; depth: number }) {
+}: Omit<Props, "nodes"> & {
+  node: Extract<TreeNode, { kind: "dir" }>;
+  depth: number;
+}) {
   const [open, setOpen] = useState(true);
   return (
     <>
@@ -64,7 +67,10 @@ function FileRow({
   selectedPath,
   isViewed,
   onSelect,
-}: Omit<Props, "nodes"> & { node: Extract<TreeNode, { kind: "file" }>; depth: number }) {
+}: Omit<Props, "nodes"> & {
+  node: Extract<TreeNode, { kind: "file" }>;
+  depth: number;
+}) {
   const { file } = node;
   const selected = file.path === selectedPath;
   const viewed = isViewed(file);
@@ -82,14 +88,22 @@ function FileRow({
       } ${viewed ? "text-muted" : ""}`}
       style={{ paddingLeft: 8 + depth * 12 + 16 }}
     >
-      <span className={`w-3 text-center text-xs ${viewed ? "text-add-fg" : "text-transparent"}`}>
+      <span
+        className={`w-3 text-center text-xs ${viewed ? "text-add-fg" : "text-transparent"}`}
+      >
         ✓
       </span>
-      <span className={`truncate ${viewed ? "line-through decoration-muted/40" : ""}`}>
+      <span
+        className={`truncate ${viewed ? "line-through decoration-muted/40" : ""}`}
+      >
         {node.name}
       </span>
-      {mark && <span className={`text-xs ${mark.className}`}>{mark.label}</span>}
-      {file.is_noise && <span className="text-xs text-muted">{file.category}</span>}
+      {mark && (
+        <span className={`text-xs ${mark.className}`}>{mark.label}</span>
+      )}
+      {file.is_noise && (
+        <span className="text-xs text-muted">{file.category}</span>
+      )}
       <span className="ml-auto shrink-0 font-mono text-xs">
         <span className="text-add-fg">+{file.additions}</span>{" "}
         <span className="text-del-fg">−{file.deletions}</span>

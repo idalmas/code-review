@@ -12,7 +12,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 const [jobDir, specFile] = process.argv.slice(2);
 const spec = JSON.parse(await fs.readFile(path.join(jobDir, specFile), "utf8"));
-const SHIMS = "/renderer/shims";
+const SHIMS = "/sandbox/shims";
 const DEFAULT_VIEWPORT = { width: 1024, height: 768 };
 
 const browser = await chromium.launch();
@@ -35,7 +35,7 @@ async function renderVersion(v, outDir) {
   const harnessDir = path.join(appRoot, ".cr-harness");
   await fs.mkdir(harnessDir, { recursive: true });
   await fs.copyFile(path.join(jobDir, spec.harness), path.join(harnessDir, "harness.tsx"));
-  await fs.copyFile("/renderer/entry.tsx", path.join(harnessDir, "entry.tsx"));
+  await fs.copyFile("/sandbox/entry.tsx", path.join(harnessDir, "entry.tsx"));
   const css = v.css ? `<link rel="stylesheet" href="/@fs${path.join(appRoot, v.css)}">` : "";
   await fs.writeFile(
     path.join(harnessDir, "index.html"),
@@ -59,7 +59,7 @@ async function renderVersion(v, outDir) {
       ],
       dedupe: ["react", "react-dom"],
     },
-    server: { host: "127.0.0.1", port: 0, fs: { allow: [appRoot, SHIMS, "/renderer"] } },
+    server: { host: "127.0.0.1", port: 0, fs: { allow: [appRoot, SHIMS, "/sandbox"] } },
   });
   await server.listen();
   const url = server.resolvedUrls.local[0];

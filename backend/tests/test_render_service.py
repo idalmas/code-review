@@ -1,7 +1,5 @@
 import asyncio
-import io
 import json
-import tarfile
 from pathlib import Path
 
 import pytest
@@ -13,7 +11,6 @@ from app.services.render import (
     RenderUnavailableError,
     create_render_service,
 )
-from app.services.render.impl import _extract  # tests may reach into internals
 from app.services.sandbox import SandboxResult
 
 from .fakes import FakeGitHubService, FakeLLMService, make_pull
@@ -94,7 +91,7 @@ async def test_renders_both_versions_offline_after_networked_install(tmp_path) -
     assert job.states[0].changed is True
     assert job.states[1].problems == ["Content overflows its box"]
     install, render = sandbox.runs
-    assert install == {"command": ["/renderer/install.sh", "/work/base/web", "/work/head/web"],
+    assert install == {"command": ["/sandbox/install.sh", "/work/base/web", "/work/head/web"],
                        "network": True}  # fmt: skip
     assert render["network"] is False  # PR code never runs with network access
     assert "untrusted" in llm.requests[0].system
@@ -120,7 +117,7 @@ async def test_failed_harness_is_retried_once_with_the_errors(tmp_path) -> None:
     assert job.status == "done" and job.message is None
     assert len(llm.requests) == 2
     assert "TypeError: x is undefined" in llm.requests[1].prompt
-    assert [r["command"][0] for r in sandbox.runs] == ["/renderer/install.sh", "node", "node"]
+    assert [r["command"][0] for r in sandbox.runs] == ["/sandbox/install.sh", "node", "node"]
 
 
 async def test_llm_can_skip_unrenderable_files(tmp_path) -> None:
@@ -129,7 +126,7 @@ async def test_llm_can_skip_unrenderable_files(tmp_path) -> None:
                               viewer="github:octo")  # fmt: skip
     job = await finish(service, job.id)
     assert (job.status, job.message) == ("skipped", "async server component")
-    assert [r["command"][0] for r in sandbox.runs] == ["/renderer/install.sh"]
+    assert [r["command"][0] for r in sandbox.runs] == ["/sandbox/install.sh"]
 
 
 async def test_only_changed_component_files(tmp_path) -> None:
@@ -159,34 +156,3 @@ async def test_unavailable_without_sandbox_or_llm(tmp_path) -> None:
     with pytest.raises(RenderUnavailableError):
         await service.start("acme", "api", 7, "web/src/Card.tsx", tier="cheap", token=None,
                             viewer="v")  # fmt: skip
-
-
-def _tar(tmp_path: Path, members: list[tarfile.TarInfo]) -> Path:
-    archive = tmp_path / "evil.tar.gz"
-    with tarfile.open(archive, "w:gz") as tar:
-        for info in members:
-            tar.addfile(info, io.BytesIO(b"x" * info.size) if info.isfile() else None)
-    return archive
-
-
-@pytest.mark.parametrize(
-    "name, kind, target",
-    [
-        ("top/../../escape.txt", tarfile.REGTYPE, ""),
-        ("top/link", tarfile.SYMTYPE, "/etc/passwd"),
-        ("top/link", tarfile.SYMTYPE, "../../outside"),
-    ],
-)
-def test_extract_rejects_paths_and_links_outside_the_repo(tmp_path, name, kind, target) -> None:
-    info = tarfile.TarInfo(name)
-    info.type, info.linkname, info.size = kind, target, 1 if kind == tarfile.REGTYPE else 0
-    with pytest.raises(tarfile.FilterError):
-        _extract(_tar(tmp_path, [info]), tmp_path / "out")
-    assert not (tmp_path / "escape.txt").exists()
-
-
-def test_extract_keeps_absolute_looking_names_inside_the_repo(tmp_path) -> None:
-    info = tarfile.TarInfo("top//etc/passwd")
-    info.size = 1
-    _extract(_tar(tmp_path, [info]), tmp_path / "out")
-    assert (tmp_path / "out" / "etc" / "passwd").is_file()

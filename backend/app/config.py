@@ -39,14 +39,14 @@ class Settings(BaseSettings):
     # Re-run Anthropic refusals on a recommended fallback model (Sonnet/Opus only).
     anthropic_server_fallbacks: bool = True
 
-    # Component rendering runs PR code in Docker containers (see docs/self-hosting.md).
-    render_enabled: bool = False
-    render_image: str = "code-review-renderer"
-    render_dir: str = "/tmp/code-review-renders"
-    # Only used while installing dependencies (the render step itself has no network).
-    render_install_network: str = "bridge"
-    render_install_proxy: str | None = None
-    render_install_ca_file: str | None = None
+    # Renders and stress tests run PR code in Docker containers (see docs/self-hosting.md).
+    sandbox_enabled: bool = False
+    sandbox_image: str = "code-review-sandbox"
+    sandbox_work_dir: str = "/tmp/code-review-sandbox"
+    # Only used while installing dependencies; running PR code never has network access.
+    sandbox_install_network: str = "bridge"
+    sandbox_install_proxy: str | None = None
+    sandbox_install_ca_file: str | None = None
 
     cors_origins: str = "http://localhost:3000"
     cache_ttl_seconds: int = 120

@@ -54,11 +54,13 @@ class GitHubService(Protocol):
         """
         ...
 
-    async def download_tarball(
+    async def download_tree(
         self, owner: str, repo: str, ref: str, *, token: str | None, dest: Path, max_bytes: int
     ) -> None:
-        """Save the repository at `ref` as a .tar.gz at `dest`. Raises `GitHubError` if it
-        fails or would exceed `max_bytes`."""
+        """Unpack the repository's files at `ref` into the new folder `dest`. Safe for
+        untrusted repos: nothing is written outside `dest` (no `..`, absolute paths, devices
+        or escaping links), and the download and unpacked size are capped at `max_bytes`.
+        Raises `GitHubError`."""
         ...
 
     async def get_viewer(self, *, token: str) -> GitHubUser:

@@ -18,6 +18,9 @@ Paste a PR link (or swap `github.com` for this app's host in any PR URL) and you
   states (very long text, empty, many items, emoji/RTL, phone width), with automatic checks
   for crashes, console errors and overflowing layout. An LLM writes the props; the PR's code
   runs in a locked-down Docker container.
+- **Stress tests for changed backend code** (Python, Node/Bun JS/TS): an LLM writes
+  property-based tests (Hypothesis / fast-check) with extreme inputs, run before and after the
+  PR, so you see "fails after this PR" with the exact input that breaks it.
 - **Sign in with GitHub**: every request runs as the signed-in user, so you see exactly the
   repos you can see on GitHub. Sessions are encrypted httpOnly cookies, with no database.
 
@@ -38,7 +41,9 @@ backend/   FastAPI REST API (Python 3.12+, uv)
       review/        builds the review model from the services above
       sandbox/       runs untrusted code in locked-down Docker containers
       render/        before/after component renders (downloads both commits, LLM harness)
-renderer/  the sandbox image: Vite + Chromium, renders a harness and takes screenshots
+      stress/        property-based stress tests of changed backend functions
+sandbox-image/  Docker image for the sandbox: Vite + Chromium renderer, pytest/Hypothesis,
+                node:test/fast-check
   tests/
 frontend/  Next.js (App Router, TypeScript, Tailwind)
   src/app/[owner]/[repo]/pull/[number]/[[...tab]]   mirrors GitHub's PR URLs
@@ -65,6 +70,8 @@ its package; a test fails if anything reaches into another service's internals.
 | POST   | `/api/repos/{owner}/{repo}/pulls/{number}/renders` `{path, tier}` | start a before/after render (signed in) |
 | GET    | `/api/renders/{id}`                                     | render status and per-state results      |
 | GET    | `/api/renders/{id}/{base\|head}/{index}.png`            | screenshot (only for whoever started it) |
+| POST   | `/api/repos/{owner}/{repo}/pulls/{number}/stress` `{path, tier}` | start stress tests (signed in) |
+| GET    | `/api/stress/{id}`                                      | verdict, test output, generated tests    |
 
 Interactive docs at http://localhost:8000/docs. The browser only talks to `/api/*` on the
 Next.js origin, which proxies to FastAPI (`BACKEND_URL`).
@@ -93,11 +100,11 @@ To enable AI summaries, also set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`. The ti
 
 Override any of them with `LLM_MODEL_CHEAP` / `LLM_MODEL_BALANCED` / `LLM_MODEL_BEST`.
 
-To enable component renders (needs Docker and an LLM key):
+To enable component renders and stress tests (needs Docker and an LLM key):
 
 ```bash
-docker build -t code-review-renderer renderer
-echo RENDER_ENABLED=true >> backend/.env
+docker build -t code-review-sandbox sandbox-image
+echo SANDBOX_ENABLED=true >> backend/.env
 ```
 
 Then open http://localhost:3000.

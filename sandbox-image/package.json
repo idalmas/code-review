@@ -1,0 +1,14 @@
+{
+  "name": "code-review-sandbox",
+  "private": true,
+  "type": "module",
+  "description": "Tools for the sandbox: renders component harnesses (Vite + Chromium) and runs generated stress tests.",
+  "dependencies": {
+    "@vitejs/plugin-react": "6.1.2",
+    "fast-check": "4.10.2",
+    "playwright": "1.64.1",
+    "tsx": "4.21.0",
+    "vite": "8.3.4",
+    "vite-tsconfig-paths": "6.1.1"
+  }
+}

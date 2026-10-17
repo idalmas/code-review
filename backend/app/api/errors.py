@@ -15,6 +15,11 @@ from app.services.review import (
     FileNotInPullRequestError,
     NothingToSummarizeError,
 )
+from app.services.stress import (
+    NotStressableError,
+    StressJobNotFoundError,
+    StressUnavailableError,
+)
 
 
 def _error(status: int, code: str, message: str, **extra) -> JSONResponse:
@@ -49,6 +54,18 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(RenderJobNotFoundError)
     async def _render_missing(_: Request, exc: RenderJobNotFoundError) -> JSONResponse:
         return _error(404, "render_not_found", str(exc))
+
+    @app.exception_handler(StressUnavailableError)
+    async def _stress_off(_: Request, exc: StressUnavailableError) -> JSONResponse:
+        return _error(503, "stress_unavailable", str(exc))
+
+    @app.exception_handler(NotStressableError)
+    async def _not_stressable(_: Request, exc: NotStressableError) -> JSONResponse:
+        return _error(422, "not_stressable", str(exc))
+
+    @app.exception_handler(StressJobNotFoundError)
+    async def _stress_missing(_: Request, exc: StressJobNotFoundError) -> JSONResponse:
+        return _error(404, "stress_not_found", str(exc))
 
     @app.exception_handler(LLMError)
     async def _llm(_: Request, exc: LLMError) -> JSONResponse:

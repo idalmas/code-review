@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import { api, renderImageUrl } from "@/lib/api";
 import type { RenderJob, RenderState, Tier } from "@/lib/types";
+import { useJob } from "@/lib/useJob";
 
 import { ErrorNote } from "./FileSummaryPanel";
 
@@ -31,27 +30,11 @@ interface Props {
 }
 
 export function RenderPanel({ path, tier, start, jobIdFor }: Props) {
-  const [job, setJob] = useState<RenderJob | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-
-  // Resume an earlier job for this file, and poll while it's running.
-  useEffect(() => {
-    const id = job?.id ?? jobIdFor(path);
-    if (!id || (job && !RUNNING.includes(job.status))) return;
-    let cancelled = false;
-    const timer = setTimeout(
-      () =>
-        api.getRender(id).then(
-          (j) => !cancelled && setJob(j),
-          (err) => !cancelled && setError(err),
-        ),
-      job ? 2000 : 0,
-    );
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [job, path, jobIdFor]);
+  const { job, setJob, error, setError, isRunning } = useJob(
+    api.getRender,
+    RUNNING,
+    jobIdFor(path),
+  );
 
   async function run() {
     setError(null);
@@ -62,19 +45,20 @@ export function RenderPanel({ path, tier, start, jobIdFor }: Props) {
     }
   }
 
-  const running = job && RUNNING.includes(job.status);
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={run}
-          disabled={!!running}
+          disabled={isRunning}
           className="rounded-md border border-border px-2 py-0.5 text-xs font-medium hover:bg-selected disabled:opacity-50"
         >
-          {job && !running ? "Render again" : "🖼 Render before / after"}
+          {job && !isRunning ? "Render again" : "🖼 Render before / after"}
         </button>
-        {running && <span className="text-xs text-muted">{STEP_LABEL[job.status]}</span>}
+        {job && isRunning && (
+          <span className="text-xs text-muted">{STEP_LABEL[job.status]}</span>
+        )}
       </div>
       <ErrorNote error={error} />
       {job?.message && (
@@ -90,7 +74,15 @@ export function RenderPanel({ path, tier, start, jobIdFor }: Props) {
   );
 }
 
-function StateRow({ jobId, index, state }: { jobId: string; index: number; state: RenderState }) {
+function StateRow({
+  jobId,
+  index,
+  state,
+}: {
+  jobId: string;
+  index: number;
+  state: RenderState;
+}) {
   return (
     <section className="space-y-1">
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -108,8 +100,20 @@ function StateRow({ jobId, index, state }: { jobId: string; index: number; state
         ))}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Shot jobId={jobId} index={index} version="base" label="Before" shot={state.base} />
-        <Shot jobId={jobId} index={index} version="head" label="After" shot={state.head} />
+        <Shot
+          jobId={jobId}
+          index={index}
+          version="base"
+          label="Before"
+          shot={state.base}
+        />
+        <Shot
+          jobId={jobId}
+          index={index}
+          version="head"
+          label="After"
+          shot={state.head}
+        />
       </div>
     </section>
   );
@@ -133,7 +137,11 @@ function Shot({
       <figcaption className="text-xs text-muted">{label}</figcaption>
       {shot ? (
         <>
-          <a href={renderImageUrl(jobId, version, index)} target="_blank" rel="noreferrer">
+          <a
+            href={renderImageUrl(jobId, version, index)}
+            target="_blank"
+            rel="noreferrer"
+          >
             {/* eslint-disable-next-line @next/next/no-img-element -- authenticated API image */}
             <img
               src={renderImageUrl(jobId, version, index)}

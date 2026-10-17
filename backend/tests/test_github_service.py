@@ -1,8 +1,11 @@
+import io
+import tarfile
+
 import httpx
 import pytest
 
-from app.services.github import NotFoundError, OAuthExchangeError, RateLimitError
-from app.services.github.impl import GitHubServiceImpl  # tests may reach into impl
+from app.services.github import GitHubError, NotFoundError, OAuthExchangeError, RateLimitError
+from app.services.github.impl import GitHubServiceImpl, _extract  # tests may reach into impl
 
 PR_JSON = {
     "number": 7,
@@ -104,3 +107,59 @@ async def test_exchange_oauth_code() -> None:
     assert await service.exchange_oauth_code(code="good", **args) == "gho_x"
     with pytest.raises(OAuthExchangeError):
         await service.exchange_oauth_code(code="bad", **args)
+
+
+def _tar(tmp_path, members: list[tarfile.TarInfo]):
+    archive = tmp_path / "repo.tar.gz"
+    with tarfile.open(archive, "w:gz") as tar:
+        for info in members:
+            tar.addfile(info, io.BytesIO(b"x" * info.size) if info.isfile() else None)
+    return archive
+
+
+@pytest.mark.parametrize(
+    "name, kind, target",
+    [
+        ("top/../../escape.txt", tarfile.REGTYPE, ""),
+        ("top/link", tarfile.SYMTYPE, "/etc/passwd"),
+        ("top/link", tarfile.SYMTYPE, "../../outside"),
+    ],
+)
+def test_extract_rejects_paths_and_links_outside_the_repo(tmp_path, name, kind, target) -> None:
+    info = tarfile.TarInfo(name)
+    info.type, info.linkname, info.size = kind, target, 1 if kind == tarfile.REGTYPE else 0
+    with pytest.raises(tarfile.FilterError):
+        _extract(_tar(tmp_path, [info]), tmp_path / "out", max_bytes=10_000)
+    assert not (tmp_path / "escape.txt").exists()
+
+
+def test_extract_strips_top_folder_and_keeps_absolute_names_inside(tmp_path) -> None:
+    ok = tarfile.TarInfo("acme-api-abc123/src/app.py")
+    ok.size = 1
+    absolute = tarfile.TarInfo("acme-api-abc123//etc/passwd")
+    absolute.size = 1
+    _extract(_tar(tmp_path, [ok, absolute]), tmp_path / "out", max_bytes=10_000)
+    assert (tmp_path / "out" / "src" / "app.py").is_file()
+    assert (tmp_path / "out" / "etc" / "passwd").is_file()
+
+
+def test_extract_enforces_size_limit(tmp_path) -> None:
+    big = tarfile.TarInfo("top/big.bin")
+    big.size = 5000
+    with pytest.raises(GitHubError):
+        _extract(_tar(tmp_path, [big]), tmp_path / "out", max_bytes=1000)
+
+
+async def test_download_tree_unpacks_tarball(tmp_path) -> None:
+    archive = _tar(tmp_path, [_file("acme-api-abc/README.md")])
+    service, seen = make_service(lambda r: httpx.Response(200, content=archive.read_bytes()))
+    await service.download_tree("acme", "api", "abc", token="t0k", dest=tmp_path / "tree",
+                                max_bytes=1_000_000)  # fmt: skip
+    assert (tmp_path / "tree" / "README.md").is_file()
+    assert seen[0].url.path == "/repos/acme/api/tarball/abc"
+
+
+def _file(name: str) -> tarfile.TarInfo:
+    info = tarfile.TarInfo(name)
+    info.size = 1
+    return info

@@ -65,16 +65,10 @@ class FakeGitHubService:
     # path -> file contents, per commit sha; served as GitHub-style tarballs.
     trees: dict[str, dict[str, str]] = {}
 
-    async def download_tarball(self, owner, repo, ref, *, token, dest, max_bytes) -> None:
-        import io
-        import tarfile
-
-        with tarfile.open(dest, "w:gz") as tar:
-            for path, text in self.trees[ref].items():
-                data = text.encode()
-                info = tarfile.TarInfo(f"{owner}-{repo}-{ref[:7]}/{path}")
-                info.size = len(data)
-                tar.addfile(info, io.BytesIO(data))
+    async def download_tree(self, owner, repo, ref, *, token, dest, max_bytes) -> None:
+        for path, text in self.trees[ref].items():
+            (dest / path).parent.mkdir(parents=True, exist_ok=True)
+            (dest / path).write_text(text)
 
     async def get_viewer(self, *, token: str) -> GitHubUser:
         return GitHubUser(login="octocat", avatar_url="https://x/a.png", name="Octo Cat")

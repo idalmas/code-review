@@ -15,6 +15,7 @@ from app.services.llm import LLMService, create_llm_service
 from app.services.render import RenderService, create_render_service
 from app.services.review import ReviewService, create_review_service
 from app.services.sandbox import SandboxService, create_sandbox_service
+from app.services.stress import StressService, create_stress_service
 
 SESSION_COOKIE = "cr_session"
 STATE_COOKIE = "cr_oauth_state"
@@ -68,10 +69,10 @@ def get_review_service() -> ReviewService:
 def get_sandbox_service() -> SandboxService:
     settings = get_settings()
     return create_sandbox_service(
-        enabled=settings.render_enabled,
-        network_mode=settings.render_install_network,
-        proxy=settings.render_install_proxy,
-        ca_file=settings.render_install_ca_file,
+        enabled=settings.sandbox_enabled,
+        network_mode=settings.sandbox_install_network,
+        proxy=settings.sandbox_install_proxy,
+        ca_file=settings.sandbox_install_ca_file,
     )
 
 
@@ -82,8 +83,20 @@ def get_render_service() -> RenderService:
         github=get_github_service(),
         llm=get_llm_service(),
         sandbox=get_sandbox_service(),
-        work_dir=Path(settings.render_dir),
-        image=settings.render_image,
+        work_dir=Path(settings.sandbox_work_dir) / "renders",
+        image=settings.sandbox_image,
+    )
+
+
+@lru_cache
+def get_stress_service() -> StressService:
+    settings = get_settings()
+    return create_stress_service(
+        github=get_github_service(),
+        llm=get_llm_service(),
+        sandbox=get_sandbox_service(),
+        work_dir=Path(settings.sandbox_work_dir) / "stress",
+        image=settings.sandbox_image,
     )
 
 

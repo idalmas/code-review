@@ -11,17 +11,25 @@ import type {
   LLMStatus,
   RenderJob,
   ReviewFile,
+  StressJob,
   Tier,
 } from "@/lib/types";
 import { useTier } from "@/lib/useTier";
 
 import { FileSummaryPanel } from "./FileSummaryPanel";
 import { RenderPanel } from "./RenderPanel";
+import { StressPanel } from "./StressPanel";
 import { TierPicker } from "./TierPicker";
 
 // Same rule as the backend: component files, not tests or stories.
 const isComponentFile = (path: string) =>
   /\.(tsx|jsx)$/.test(path) && !/\.(test|spec|stories)\.[jt]sx$/.test(path);
+const isBackendFile = (path: string) =>
+  /\.(py|ts|mts|js|mjs)$/.test(path) &&
+  !/\.d\.ts$/.test(path) &&
+  !/(^|\/)(test_[^/]*\.py|[^/]*_test\.py|[^/]*\.(test|spec)\.[mc]?[jt]s)$/.test(
+    path,
+  );
 
 interface Props {
   file: ReviewFile;
@@ -34,6 +42,9 @@ interface Props {
   renderEnabled: boolean;
   startRender: (path: string, tier: Tier) => Promise<RenderJob>;
   renderJobFor: (path: string) => string | undefined;
+  stressEnabled: boolean;
+  startStress: (path: string, tier: Tier) => Promise<StressJob>;
+  stressJobFor: (path: string) => string | undefined;
 }
 
 export function FileDiffView({
@@ -47,6 +58,9 @@ export function FileDiffView({
   renderEnabled,
   startRender,
   renderJobFor,
+  stressEnabled,
+  startStress,
+  stressJobFor,
 }: Props) {
   const [tier, setTier] = useTier(llm?.default_tier ?? "cheap");
   const [diff, setDiff] = useState<FileDiff | null>(null);
@@ -56,7 +70,9 @@ export function FileDiffView({
     let cancelled = false;
     loadDiff(file.path).then(
       (d) => !cancelled && setDiff(d),
-      (err) => !cancelled && setError(err instanceof ApiError ? err.message : String(err)),
+      (err) =>
+        !cancelled &&
+        setError(err instanceof ApiError ? err.message : String(err)),
     );
     return () => {
       cancelled = true;
@@ -107,6 +123,14 @@ export function FileDiffView({
               jobIdFor={renderJobFor}
             />
           )}
+          {stressEnabled && isBackendFile(file.path) && (
+            <StressPanel
+              path={file.path}
+              tier={tier}
+              start={startStress}
+              jobIdFor={stressJobFor}
+            />
+          )}
         </div>
       )}
 
@@ -117,7 +141,12 @@ export function FileDiffView({
           {diff.unavailable_reason === "too_large"
             ? "GitHub doesn't send diffs this large. "
             : "Binary or empty file. "}
-          <a href={file.github_url} target="_blank" rel="noreferrer" className="text-accent">
+          <a
+            href={file.github_url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent"
+          >
             View it on GitHub
           </a>
           .
@@ -145,12 +174,16 @@ function HunkView({ hunk }: { hunk: Hunk }) {
       >
         {collapsed ? "▸" : "▾"} {hunk.header}
       </button>
-      {!collapsed && hunk.lines.map((line, i) => <LineRow key={i} line={line} />)}
+      {!collapsed &&
+        hunk.lines.map((line, i) => <LineRow key={i} line={line} />)}
     </section>
   );
 }
 
-const ROW_STYLE: Record<DiffLine["kind"], { row: string; num: string; sign: string }> = {
+const ROW_STYLE: Record<
+  DiffLine["kind"],
+  { row: string; num: string; sign: string }
+> = {
   add: { row: "bg-add-bg", num: "bg-add-num", sign: "+" },
   del: { row: "bg-del-bg", num: "bg-del-num", sign: "-" },
   context: { row: "", num: "", sign: " " },

@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.deps import get_github_service, get_llm_service
 from app.api.errors import register_error_handlers
-from app.api.routes import auth, links, llm, pulls, renders
+from app.api.routes import auth, links, llm, pulls, renders, stress
 from app.config import get_settings
 
 
@@ -36,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(links.router, prefix="/api")
     app.include_router(llm.router, prefix="/api")
     app.include_router(renders.router, prefix="/api")
+    app.include_router(stress.router, prefix="/api")
     app.include_router(pulls.router, prefix="/api")
     return app
 

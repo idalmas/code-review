@@ -17,7 +17,10 @@ interface Props {
 
 export function FileSummaryPanel({ path, tier, summarize, cached }: Props) {
   // Summaries are kept per file+tier; one fetched for another tier isn't shown.
-  const [result, setResult] = useState<{ key: string; summary: FileSummary } | null>(null);
+  const [result, setResult] = useState<{
+    key: string;
+    summary: FileSummary;
+  } | null>(null);
   const key = `${tier}:${path}`;
   const summary = result?.key === key ? result.summary : null;
   const [error, setError] = useState<Error | null>(null);
@@ -55,7 +58,11 @@ export function FileSummaryPanel({ path, tier, summarize, cached }: Props) {
         disabled={pending}
         className="rounded-md border border-border px-2 py-0.5 text-xs font-medium hover:bg-selected disabled:opacity-50"
       >
-        {pending ? "Summarizing…" : summary ? "Summarize again" : "✨ Summarize change"}
+        {pending
+          ? "Summarizing…"
+          : summary
+            ? "Summarize again"
+            : "✨ Summarize change"}
       </button>
       <ErrorNote error={error} />
       {summary && (
@@ -78,7 +85,9 @@ export function ErrorNote({ error }: { error: Error | null }) {
   return (
     <div className="space-y-2 text-del-fg">
       <p>{error.message}</p>
-      {error instanceof ApiError && error.code === "sign_in_required" && <SignInButton />}
+      {error instanceof ApiError && error.code === "sign_in_required" && (
+        <SignInButton />
+      )}
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import asyncio
 import hashlib
+import tarfile
+import tempfile
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -107,7 +109,17 @@ class GitHubServiceImpl:
         key = ("files", _token_key(token), owner, repo, number)
         return await self._cache.get_or_fetch(key, fetch)
 
-    async def download_tarball(
+    async def download_tree(
+        self, owner: str, repo: str, ref: str, *, token: str | None, dest: Path, max_bytes: int
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = Path(tmp) / "repo.tar.gz"
+            await self._download_tarball(
+                owner, repo, ref, token=token, dest=archive, max_bytes=max_bytes
+            )
+            await asyncio.to_thread(_extract, archive, dest, max_bytes * 4)
+
+    async def _download_tarball(
         self, owner: str, repo: str, ref: str, *, token: str | None, dest: Path, max_bytes: int
     ) -> None:
         headers = {"Authorization": f"Bearer {token}"} if token else None
@@ -173,6 +185,29 @@ class GitHubServiceImpl:
         if response.is_success:
             return response.json()
         _raise_for_status(response)
+
+
+def _extract(archive: Path, dest: Path, max_bytes: int) -> None:
+    """Unpack GitHub's tarball (one top-level folder) with tarfile's `data` filter, which
+    rejects absolute paths, `..`, device files and links that point outside `dest`."""
+    total = 0
+
+    def strip_top(member: tarfile.TarInfo, path: str) -> tarfile.TarInfo | None:
+        nonlocal total
+        _, _, rest = member.name.partition("/")
+        if not rest:
+            return None
+        total += member.size
+        if total > max_bytes:
+            raise GitHubError("Repository is too large to unpack.")
+        changes = {"name": rest}
+        if member.islnk():
+            changes["linkname"] = member.linkname.partition("/")[2]
+        return tarfile.data_filter(member.replace(**changes, deep=False), path)
+
+    dest.mkdir(parents=True)
+    with tarfile.open(archive, "r:gz") as tar:
+        tar.extractall(dest, filter=strip_top)
 
 
 def _token_key(token: str | None) -> str:

@@ -54,42 +54,51 @@ the operator decides which model backs each tier (`LLM_MODEL_CHEAP` etc.).
 - Anthropic refusals on Sonnet/Opus are retried server-side on Anthropic's recommended
   fallback model. Disable with `ANTHROPIC_SERVER_FALLBACKS=false`.
 
-## Component renders (optional)
+## Component renders and stress tests (optional)
 
-Reviewers can render a changed React component before and after the PR. This runs the PR's
-own code, so it happens in Docker containers started by the backend:
+Two features run the PR's own code, in Docker containers started by the backend:
 
-1. The backend downloads both commits as tarballs (with the reviewer's GitHub token) and
-   unpacks them with path-traversal and size checks.
-2. **Install container:** network on, but package install scripts are disabled
-   (`--ignore-scripts`).
-3. An LLM writes a harness: the component in a typical state plus stress states.
-4. **Render container:** `--network none`. Vite serves the harness, Chromium screenshots it.
+- **Renders:** a changed React component, before and after, in typical and stress states,
+  screenshotted in Chromium.
+- **Stress tests:** property-based tests (Hypothesis for Python, fast-check for Node/Bun
+  JS/TS) for the functions a PR changed, run before and after.
 
-Every container runs as a non-root user with all capabilities dropped,
-`no-new-privileges`, 2 GB memory, 2 CPUs, 512 processes, and a time limit. Nothing but the
-job's own folder is mounted; no secrets or tokens are passed in. Source and `node_modules`
-are deleted after each render; screenshots expire after two hours and are only served to
-the person who started the render.
+Each job:
+
+1. Downloads both commits as tarballs (with the reviewer's GitHub token) and unpacks them
+   with path-traversal, link and size checks.
+2. **Install container:** network on, but no code from the packages runs: JS install
+   scripts are disabled (`--ignore-scripts`) and Python is wheels-only (`--no-build`).
+3. An LLM writes the harness or tests. The PR source is passed as untrusted data.
+4. **Run container:** `--network none`.
+
+Every container runs as a non-root user (never uid 0, even if the backend runs as root) with
+all capabilities dropped, `no-new-privileges`, 2 GB memory, 2 CPUs, 512 processes, a private
+`/tmp`, and a time limit. Only the job's own folder is mounted; no secrets or tokens are
+passed in. Commands are passed as argument lists, never through a shell. Source trees and
+dependencies are deleted after each job; results expire after two hours and are only shown
+to the person who started them.
 
 Setup, on a host with Docker:
 
 ```bash
-docker build -t code-review-renderer renderer
+docker build -t code-review-sandbox sandbox-image
 # backend/.env
-RENDER_ENABLED=true
-# Behind a TLS-inspecting corporate proxy, for the install step only:
-# RENDER_INSTALL_PROXY=http://proxy:3128
-# RENDER_INSTALL_CA_FILE=/etc/ssl/corp-ca.crt
+SANDBOX_ENABLED=true
+# Behind a TLS-inspecting corporate proxy, for the install step only.
+# The CA file must be a full bundle (system roots + your proxy's CA).
+# SANDBOX_INSTALL_PROXY=http://proxy:3128
+# SANDBOX_INSTALL_CA_FILE=/etc/ssl/certs/corp-bundle.crt
 ```
 
 The backend calls the `docker` CLI, so run it directly on the Docker host (as `./dev.sh`
-does). Rendering from inside the Compose backend container would require mounting the
+does). Running these from inside the Compose backend container would require mounting the
 Docker socket into it, which gives that container root on the host, so the Compose setup
-leaves rendering off.
+leaves them off.
 
-Assumes a React frontend installed with npm, pnpm or yarn; Next.js `Link`, `Image` and
-navigation hooks are replaced with simple stand-ins.
+Assumptions: a React frontend installed with npm, pnpm or yarn (Next.js `Link`, `Image` and
+navigation hooks are replaced with simple stand-ins), and a Node/Bun or Python backend
+(`package.json`, or `pyproject.toml`/`requirements.txt`, optionally with `uv.lock`).
 
 ## Access model
 

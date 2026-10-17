@@ -4,7 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { api, ApiError } from "@/lib/api";
 import { buildTree, flattenTree } from "@/lib/fileTree";
-import type { FileDiff, FileSummary, LLMStatus, ReviewSummary, Tier } from "@/lib/types";
+import type {
+  FileDiff,
+  FileSummary,
+  LLMStatus,
+  ReviewSummary,
+  Tier,
+} from "@/lib/types";
 import { useMe } from "@/lib/useMe";
 import { useViewedFiles } from "@/lib/useViewedFiles";
 
@@ -32,6 +38,8 @@ export function ReviewApp({ owner, repo, number }: Props) {
   const diffCache = useRef(new Map<string, Promise<FileDiff>>());
   const summaryCache = useRef(new Map<string, Promise<FileSummary>>());
   const renderJobs = useRef(new Map<string, string>());
+  const stressJobs = useRef(new Map<string, string>());
+  const [stressEnabled, setStressEnabled] = useState(false);
   const [llm, setLlm] = useState<LLMStatus | null>(null);
   const [renderEnabled, setRenderEnabled] = useState(false);
 
@@ -40,6 +48,10 @@ export function ReviewApp({ owner, repo, number }: Props) {
     api.renderAvailability().then(
       (r) => setRenderEnabled(r.enabled),
       () => setRenderEnabled(false),
+    );
+    api.stressAvailability().then(
+      (r) => setStressEnabled(r.enabled),
+      () => setStressEnabled(false),
     );
   }, []);
 
@@ -51,15 +63,34 @@ export function ReviewApp({ owner, repo, number }: Props) {
     },
     [owner, repo, number],
   );
-  const renderJobFor = useCallback((path: string) => renderJobs.current.get(path), []);
+  const renderJobFor = useCallback(
+    (path: string) => renderJobs.current.get(path),
+    [],
+  );
+  const startStress = useCallback(
+    async (path: string, tier: Tier) => {
+      const job = await api.startStress(owner, repo, number, path, tier);
+      stressJobs.current.set(path, job.id);
+      return job;
+    },
+    [owner, repo, number],
+  );
+  const stressJobFor = useCallback(
+    (path: string) => stressJobs.current.get(path),
+    [],
+  );
 
-  const { isViewed, setFileViewed } = useViewedFiles(`viewed:${owner}/${repo}#${number}`);
+  const { isViewed, setFileViewed } = useViewedFiles(
+    `viewed:${owner}/${repo}#${number}`,
+  );
 
   useEffect(() => {
     let cancelled = false;
     api.getReview(owner, repo, number).then(
       (data) => !cancelled && setSummary(data),
-      (err) => !cancelled && setError(err instanceof Error ? err : new Error(String(err))),
+      (err) =>
+        !cancelled &&
+        setError(err instanceof Error ? err : new Error(String(err))),
     );
     return () => {
       cancelled = true;
@@ -150,7 +181,9 @@ export function ReviewApp({ owner, repo, number }: Props) {
     setFileViewed(selected, nowViewed);
     if (nowViewed) {
       const i = order.findIndex((f) => f.path === selected.path);
-      const next = [...order.slice(i + 1), ...order.slice(0, i)].find((f) => !isViewed(f));
+      const next = [...order.slice(i + 1), ...order.slice(0, i)].find(
+        (f) => !isViewed(f),
+      );
       if (next) select(next.path);
     }
   }, [selected, isViewed, setFileViewed, order, select]);
@@ -158,7 +191,12 @@ export function ReviewApp({ owner, repo, number }: Props) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const target = e.target as HTMLElement;
-      if (target.closest("input, textarea, [contenteditable]") || e.metaKey || e.ctrlKey) return;
+      if (
+        target.closest("input, textarea, [contenteditable]") ||
+        e.metaKey ||
+        e.ctrlKey
+      )
+        return;
       if (e.key === "j") move(1);
       else if (e.key === "k") move(-1);
       else if (e.key === "v") toggleViewed();
@@ -179,7 +217,9 @@ export function ReviewApp({ owner, repo, number }: Props) {
       !me.user;
     return (
       <div className="mx-auto max-w-xl space-y-3 p-8">
-        <h1 className="text-lg font-semibold">Couldn&apos;t load this pull request</h1>
+        <h1 className="text-lg font-semibold">
+          Couldn&apos;t load this pull request
+        </h1>
         <p className="text-muted">{error.message}</p>
         {signInMightHelp && <SignInButton />}
       </div>
@@ -191,7 +231,10 @@ export function ReviewApp({ owner, repo, number }: Props) {
   const reviewedLines = reviewable
     .filter(isViewed)
     .reduce((n, f) => n + f.additions + f.deletions, 0);
-  const totalLines = reviewable.reduce((n, f) => n + f.additions + f.deletions, 0);
+  const totalLines = reviewable.reduce(
+    (n, f) => n + f.additions + f.deletions,
+    0,
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -237,7 +280,8 @@ export function ReviewApp({ owner, repo, number }: Props) {
             onSelect={select}
           />
           <p className="border-t border-border p-2 text-xs text-muted">
-            <kbd>j</kbd>/<kbd>k</kbd> next/prev · <kbd>v</kbd> mark viewed · <kbd>/</kbd> filter
+            <kbd>j</kbd>/<kbd>k</kbd> next/prev · <kbd>v</kbd> mark viewed ·{" "}
+            <kbd>/</kbd> filter
           </p>
         </aside>
         <main className="min-w-0 flex-1 overflow-auto">
@@ -254,9 +298,14 @@ export function ReviewApp({ owner, repo, number }: Props) {
               renderEnabled={renderEnabled}
               startRender={startRender}
               renderJobFor={renderJobFor}
+              stressEnabled={stressEnabled}
+              startStress={startStress}
+              stressJobFor={stressJobFor}
             />
           ) : (
-            <p className="p-6 text-muted">No files match the current filters.</p>
+            <p className="p-6 text-muted">
+              No files match the current filters.
+            </p>
           )}
         </main>
       </div>

@@ -6,6 +6,7 @@ import type {
   RenderJob,
   ResolvedLink,
   ReviewSummary,
+  StressJob,
   Tier,
 } from "./types";
 
@@ -27,8 +28,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (res.status === 204) return undefined as T;
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const detail = typeof body.detail === "string" ? body.detail : res.statusText;
-    throw new ApiError(detail || "Request failed", res.status, body.code ?? "unknown");
+    const detail =
+      typeof body.detail === "string" ? body.detail : res.statusText;
+    throw new ApiError(
+      detail || "Request failed",
+      res.status,
+      body.code ?? "unknown",
+    );
   }
   return res.json() as Promise<T>;
 }
@@ -49,22 +55,55 @@ export const api = {
 
   renderAvailability: () => request<{ enabled: boolean }>("/renders"),
 
-  startRender: (owner: string, repo: string, number: number, path: string, tier: Tier) =>
+  startRender: (
+    owner: string,
+    repo: string,
+    number: number,
+    path: string,
+    tier: Tier,
+  ) =>
     request<RenderJob>(`${prPath(owner, repo, number)}/renders`, {
       method: "POST",
       body: JSON.stringify({ path, tier }),
     }),
 
-  getRender: (id: string) => request<RenderJob>(`/renders/${encodeURIComponent(id)}`),
+  getRender: (id: string) =>
+    request<RenderJob>(`/renders/${encodeURIComponent(id)}`),
 
-  summarizeFile: (owner: string, repo: string, number: number, path: string, tier: Tier) =>
+  stressAvailability: () => request<{ enabled: boolean }>("/stress"),
+
+  startStress: (
+    owner: string,
+    repo: string,
+    number: number,
+    path: string,
+    tier: Tier,
+  ) =>
+    request<StressJob>(`${prPath(owner, repo, number)}/stress`, {
+      method: "POST",
+      body: JSON.stringify({ path, tier }),
+    }),
+
+  getStress: (id: string) =>
+    request<StressJob>(`/stress/${encodeURIComponent(id)}`),
+
+  summarizeFile: (
+    owner: string,
+    repo: string,
+    number: number,
+    path: string,
+    tier: Tier,
+  ) =>
     request<FileSummary>(`${prPath(owner, repo, number)}/summaries`, {
       method: "POST",
       body: JSON.stringify({ path, tier }),
     }),
 
   resolveLink: (url: string) =>
-    request<ResolvedLink>("/links/resolve", { method: "POST", body: JSON.stringify({ url }) }),
+    request<ResolvedLink>("/links/resolve", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+    }),
 
   getReview: (owner: string, repo: string, number: number) =>
     request<ReviewSummary>(`${prPath(owner, repo, number)}/review`),
@@ -75,5 +114,8 @@ export const api = {
     ),
 };
 
-export const renderImageUrl = (id: string, version: "base" | "head", index: number) =>
-  `/api/renders/${encodeURIComponent(id)}/${version}/${index}.png`;
+export const renderImageUrl = (
+  id: string,
+  version: "base" | "head",
+  index: number,
+) => `/api/renders/${encodeURIComponent(id)}/${version}/${index}.png`;

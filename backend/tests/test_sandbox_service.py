@@ -57,6 +57,10 @@ async def test_networked_run_gets_proxy_and_ca(captured, tmp_path: Path) -> None
     assert _flag(args, "--network") == ["bridge"]
     assert "HTTPS_PROXY=http://p:1" in _flag(args, "-e")
     assert "/ca.crt:/etc/cr-extra-ca.crt:ro" in _flag(args, "-v")
+    assert {
+        "NODE_EXTRA_CA_CERTS=/etc/cr-extra-ca.crt",
+        "SSL_CERT_FILE=/etc/cr-extra-ca.crt",
+    } <= set(_flag(args, "-e"))
 
 
 async def test_disabled_sandbox_refuses(tmp_path: Path) -> None:

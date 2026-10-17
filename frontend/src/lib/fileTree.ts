@@ -24,7 +24,9 @@ export function buildTree(files: ReviewFile[]): TreeNode[] {
     let dir = root;
     for (const part of parts.slice(0, -1)) {
       const path = dir.path ? `${dir.path}/${part}` : part;
-      let next = dir.children.find((c): c is DirNode => c.kind === "dir" && c.name === part);
+      let next = dir.children.find(
+        (c): c is DirNode => c.kind === "dir" && c.name === part,
+      );
       if (!next) {
         next = { kind: "dir", name: part, path, children: [] };
         dir.children.push(next);
@@ -49,10 +51,15 @@ function compact(node: TreeNode): TreeNode {
 
 function byDirThenName(a: TreeNode, b: TreeNode): number {
   if (a.kind !== b.kind) return a.kind === "dir" ? -1 : 1;
-  return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+  return a.name.localeCompare(b.name, undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
 }
 
 /** Files in the order they appear in the tree — what j/k should walk through. */
 export function flattenTree(nodes: TreeNode[]): ReviewFile[] {
-  return nodes.flatMap((n) => (n.kind === "file" ? [n.file] : flattenTree(n.children)));
+  return nodes.flatMap((n) =>
+    n.kind === "file" ? [n.file] : flattenTree(n.children),
+  );
 }

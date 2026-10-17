@@ -165,3 +165,30 @@ export interface RenderJob {
   message: string | null;
   states: RenderState[];
 }
+
+export interface TestRun {
+  passed: boolean;
+  timed_out: boolean;
+  output: string;
+}
+
+export interface StressJob {
+  id: string;
+  path: string;
+  tier: Tier;
+  language: "python" | "javascript";
+  status:
+    | "queued"
+    | "downloading"
+    | "installing"
+    | "writing_tests"
+    | "running"
+    | "done"
+    | "skipped"
+    | "failed";
+  message: string | null;
+  test_code: string | null;
+  base: TestRun | null;
+  head: TestRun | null;
+  verdict: "passed" | "new_failure" | "existing_failure" | "failure" | null;
+}
