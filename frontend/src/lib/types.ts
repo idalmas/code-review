@@ -191,6 +191,7 @@ export interface RenderJob {
     | "failed";
   message: string | null;
   states: RenderState[];
+  live_path: string | null;
 }
 
 export interface TestRun {

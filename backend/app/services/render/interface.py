@@ -18,6 +18,7 @@ from .types import (
 )
 
 __all__ = [
+    "LIVE_CSP",
     "NotRenderableError",
     "RenderJob",
     "RenderJobNotFoundError",
@@ -30,6 +31,15 @@ __all__ = [
     "Viewport",
     "create_render_service",
 ]
+
+
+# Headers for the clickable build: always sandboxed (opaque origin, so no access to Orbiter's
+# cookies, storage or API, even if opened directly), no network, embeddable only by Orbiter.
+LIVE_CSP = (
+    "sandbox allow-scripts; default-src 'none'; script-src 'self'; "
+    "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
+    "connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'"
+)
 
 
 class RenderService(Protocol):
@@ -60,6 +70,12 @@ class RenderService(Protocol):
 
     def image_path(self, job_id: str, version: Version, index: int, *, viewer: str) -> Path:
         """Screenshot file for one state. Raises `RenderJobNotFoundError`."""
+        ...
+
+    def live_file(self, job_id: str, secret: str, path: str) -> Path:
+        """A file of the clickable head build. Authorized by the secret in `live_path`
+        (the sandboxed iframe that loads it can't send cookies). This is the PR's code:
+        serve it only with `LIVE_CSP`. Raises `RenderJobNotFoundError`."""
         ...
 
 

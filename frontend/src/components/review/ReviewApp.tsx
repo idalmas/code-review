@@ -18,6 +18,7 @@ import { useViewedFiles } from "@/lib/useViewedFiles";
 import { SignInButton } from "../SignInButton";
 
 import { type Anchor, FileDiffView } from "./FileDiffView";
+import type { PickTarget } from "./LiveInspector";
 import { FileTree } from "./FileTree";
 import { ReviewHeader } from "./ReviewHeader";
 
@@ -190,6 +191,61 @@ export function ReviewApp({ owner, repo, number }: Props) {
     history.replaceState(null, "", `#${encodeURIComponent(path)}`);
   }, []);
 
+  // Map a clicked element's source chain (innermost first) to a line GitHub accepts comments
+  // on: the first exact match on a changed line, else the nearest changed line in the first
+  // file of the chain that this PR touches.
+  const resolvePick = useCallback(
+    async (chain: string[]): Promise<PickTarget | null> => {
+      const inPr = new Set(
+        summary?.files
+          .filter((f) => f.status !== "removed" && f.has_diff)
+          .map((f) => f.path),
+      );
+      const parsed = chain
+        .map((src) => {
+          const at = src.lastIndexOf(":");
+          return {
+            path: src.slice(0, at),
+            line: Number(src.slice(at + 1)),
+            source: src,
+          };
+        })
+        .filter((p) => inPr.has(p.path));
+      let fallback: PickTarget | null = null;
+      for (const p of parsed) {
+        const diff = await loadDiff(p.path).catch(() => null);
+        const lines = (diff?.hunks ?? []).flatMap((h) =>
+          h.lines
+            .map((l) => l.new_number)
+            .filter((n): n is number => n != null),
+        );
+        if (lines.includes(p.line)) return { ...p, exact: true };
+        if (!fallback && lines.length) {
+          const nearest = lines.reduce((a, b) =>
+            Math.abs(b - p.line) < Math.abs(a - p.line) ? b : a,
+          );
+          fallback = {
+            path: p.path,
+            line: nearest,
+            exact: false,
+            source: p.source,
+          };
+        }
+      }
+      return fallback;
+    },
+    [summary, loadDiff],
+  );
+  const renderComments = useMemo(
+    () => ({
+      resolve: resolvePick,
+      comment: (target: PickTarget, body: string) =>
+        addComment(target.path, { side: "RIGHT", line: target.line }, body),
+      onJump: (path: string) => select(path),
+    }),
+    [resolvePick, addComment, select],
+  );
+
   // Restore the file from the URL hash, otherwise start at the first unviewed file.
   useEffect(() => {
     if (!summary || selectedPath) return;
@@ -348,6 +404,7 @@ export function ReviewApp({ owner, repo, number }: Props) {
               renderEnabled={renderEnabled}
               startRender={startRender}
               renderJobFor={renderJobFor}
+              renderComments={renderComments}
               stressEnabled={stressEnabled}
               startStress={startStress}
               stressJobFor={stressJobFor}

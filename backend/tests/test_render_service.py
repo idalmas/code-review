@@ -42,7 +42,11 @@ class FakeSandbox:
             for version in spec["versions"]:
                 out = workdir / "out" / version
                 out.mkdir(parents=True, exist_ok=True)
-                (out / "report.json").write_text(json.dumps(report))
+                live = spec.get("live") == version and "states" in report
+                (out / "report.json").write_text(json.dumps({**report, "live": live}))
+                if live:
+                    (workdir / "out" / "live").mkdir(exist_ok=True)
+                    (workdir / "out" / "live" / "index.html").write_text("<html>")
                 for state in report.get("states", []):
                     (out / state["image"]).write_bytes(version.encode())  # base != head pixels
         return SandboxResult(exit_code=0, timed_out=False, output="")
@@ -156,3 +160,21 @@ async def test_unavailable_without_sandbox_or_llm(tmp_path) -> None:
     with pytest.raises(RenderUnavailableError):
         await service.start("acme", "api", 7, "web/src/Card.tsx", tier="cheap", token=None,
                             viewer="v")  # fmt: skip
+
+
+async def test_live_build_is_served_only_with_its_secret(tmp_path) -> None:
+    service, *_ = make(tmp_path, reports=[{"states": [state("Default")]}], replies=[HARNESS])
+    job = await service.start("acme", "api", 7, "web/src/Card.tsx", tier="cheap", token=None,
+                              viewer="github:octo")  # fmt: skip
+    job = await finish(service, job.id)
+    job_id, _, secret = job.live_path.split("/")
+    assert service.live_file(job_id, secret, "index.html").read_text() == "<html>"
+    attempts = [
+        ("wrong", "index.html"),
+        (secret, "../harness.tsx"),
+        (secret, "../../out/head/report.json"),
+        (secret, "nope.js"),
+    ]
+    for bad_secret, path in attempts:
+        with pytest.raises(RenderJobNotFoundError):
+            service.live_file(job_id, bad_secret, path)

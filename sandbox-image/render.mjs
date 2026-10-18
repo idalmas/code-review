@@ -2,13 +2,17 @@
 // screenshots plus automatic checks. Runs inside the sandbox with no network.
 //
 // Usage: node render.mjs <job-dir> <spec.json>
-//   spec: { versions: { base?: {appRoot, component, css?}, head?: {...} }, harness: "harness.tsx" }
+//   spec: { versions: { base?: {appRoot, component, css?}, head?: {...} }, harness: "harness.tsx",
+//           live?: "head" }   // also build that version as a static, clickable page
+//   appRoot is "<version>/<path in repo>", e.g. "head/web".
 import fs from "node:fs/promises";
 import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { chromium } from "playwright";
-import { createServer } from "vite";
+import { build, createServer } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
+
+import { sourceTags } from "./source-tags.mjs";
 
 const [jobDir, specFile] = process.argv.slice(2);
 const spec = JSON.parse(await fs.readFile(path.join(jobDir, specFile), "utf8"));
@@ -24,32 +28,44 @@ try {
       buildError: String(err?.stack ?? err).slice(0, 4000),
       states: [],
     }));
+    if (spec.live === version && !report.buildError) {
+      report.live = await buildLive(v, path.join(jobDir, "out", "live")).then(
+        () => true,
+        (err) => (console.error("live build failed:", err), false),
+      );
+    }
     await fs.writeFile(path.join(outDir, "report.json"), JSON.stringify(report, null, 2));
   }
 } finally {
   await browser.close();
 }
 
-async function renderVersion(v, outDir) {
+/** Writes the harness page into the app and returns the shared Vite config for it. */
+async function prepare(v) {
   const appRoot = path.join(jobDir, v.appRoot);
   const harnessDir = path.join(appRoot, ".cr-harness");
   await fs.mkdir(harnessDir, { recursive: true });
   await fs.copyFile(path.join(jobDir, spec.harness), path.join(harnessDir, "harness.tsx"));
   await fs.copyFile("/sandbox/entry.tsx", path.join(harnessDir, "entry.tsx"));
-  const css = v.css ? `<link rel="stylesheet" href="/@fs${path.join(appRoot, v.css)}">` : "";
+  await fs.copyFile("/sandbox/inspector.ts", path.join(harnessDir, "inspector.ts"));
+  const css = v.css ? `import ${JSON.stringify(path.join(appRoot, v.css))};\n` : "";
+  await fs.writeFile(path.join(harnessDir, "main.tsx"), `${css}import "./entry";\n`);
   await fs.writeFile(
     path.join(harnessDir, "index.html"),
-    `<!doctype html><html><head><meta charset="utf-8">${css}</head>` +
+    `<!doctype html><html><head><meta charset="utf-8"></head>` +
       `<body style="margin:0"><div id="cr-root" style="display:inline-block;min-width:100%;padding:16px;box-sizing:border-box"></div>` +
-      `<script type="module" src="./entry.tsx"></script></body></html>`,
+      `<script type="module" src="./main.tsx"></script></body></html>`,
   );
-
   process.chdir(appRoot); // Tailwind and PostCSS resolve content and config from here.
-  const server = await createServer({
+  return {
     root: harnessDir,
     configFile: false,
     logLevel: "error",
-    plugins: [react(), tsconfigPaths({ root: appRoot })],
+    plugins: [
+      sourceTags({ appRoot, repoPrefix: v.appRoot.split("/").slice(1).join("/") }),
+      react(),
+      tsconfigPaths({ root: appRoot }),
+    ],
     resolve: {
       alias: [
         { find: "@target", replacement: path.join(appRoot, v.component) },
@@ -59,6 +75,20 @@ async function renderVersion(v, outDir) {
       ],
       dedupe: ["react", "react-dom"],
     },
+  };
+}
+
+/** Static build of the harness (relative URLs) that Orbiter serves for click-to-comment. */
+async function buildLive(v, outDir) {
+  const config = await prepare(v);
+  await build({ ...config, base: "./", build: { outDir, emptyOutDir: true, sourcemap: false } });
+}
+
+async function renderVersion(v, outDir) {
+  const config = await prepare(v);
+  const appRoot = path.join(jobDir, v.appRoot);
+  const server = await createServer({
+    ...config,
     server: { host: "127.0.0.1", port: 0, fs: { allow: [appRoot, SHIMS, "/sandbox"] } },
   });
   await server.listen();

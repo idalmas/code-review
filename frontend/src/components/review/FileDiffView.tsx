@@ -21,7 +21,7 @@ import { useTier } from "@/lib/useTier";
 import { CommentComposer } from "./CommentComposer";
 import { CommentThreadView } from "./CommentThreadView";
 import { FileSummaryPanel } from "./FileSummaryPanel";
-import { RenderPanel } from "./RenderPanel";
+import { type RenderComments, RenderPanel } from "./RenderPanel";
 import { StressPanel } from "./StressPanel";
 import { TierPicker } from "./TierPicker";
 
@@ -68,6 +68,7 @@ interface Props {
   renderEnabled: boolean;
   startRender: (path: string, tier: Tier) => Promise<RenderJob>;
   renderJobFor: (path: string) => string | undefined;
+  renderComments: RenderComments;
   stressEnabled: boolean;
   startStress: (path: string, tier: Tier) => Promise<StressJob>;
   stressJobFor: (path: string) => string | undefined;
@@ -85,6 +86,7 @@ export function FileDiffView({
   renderEnabled,
   startRender,
   renderJobFor,
+  renderComments,
   stressEnabled,
   startStress,
   stressJobFor,
@@ -148,6 +150,7 @@ export function FileDiffView({
               tier={tier}
               start={startRender}
               jobIdFor={renderJobFor}
+              comments={renderComments}
             />
           )}
           {stressEnabled && isBackendFile(file.path) && (

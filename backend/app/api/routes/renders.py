@@ -11,7 +11,7 @@ from app.api.deps import (
     require_viewer_when_login_enabled,
 )
 from app.services.llm import Tier
-from app.services.render import RenderJob, RenderService
+from app.services.render import LIVE_CSP, RenderJob, RenderService
 
 router = APIRouter(tags=["renders"])
 
@@ -70,4 +70,22 @@ def get_render_image(
         render.image_path(job_id, version, index, viewer=viewer),
         media_type="image/png",
         headers={"Cache-Control": "private, max-age=3600"},
+    )
+
+
+@router.get("/renders/{job_id}/live/{secret}/{path:path}")
+def get_live_file(job_id: str, secret: str, path: str, render: Render) -> FileResponse:
+    """The clickable build. No cookie check: the sandboxed iframe can't send cookies, so the
+    unguessable secret (only given to the job's owner) authorizes it instead."""
+    return FileResponse(
+        render.live_file(job_id, secret, path or "index.html"),
+        headers={
+            "Content-Security-Policy": LIVE_CSP,
+            "X-Content-Type-Options": "nosniff",
+            # The sandboxed frame has an opaque origin ("null"); its module scripts load in
+            # CORS mode, so they need this. The URL itself is the secret.
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "private, max-age=3600",
+            "Referrer-Policy": "no-referrer",
+        },
     )

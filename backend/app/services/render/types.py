@@ -55,3 +55,6 @@ class RenderJob(BaseModel):
     message: str | None = None
     created_at: datetime
     states: list[RenderState] = []
+    # "<job id>/live/<secret>": a clickable build of the head version, for click-to-comment.
+    # Only ever returned to the job's owner; anyone holding it can load those files.
+    live_path: str | None = None

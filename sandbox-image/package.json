@@ -4,6 +4,9 @@
   "type": "module",
   "description": "Tools for the sandbox: renders component harnesses (Vite + Chromium) and runs generated stress tests.",
   "dependencies": {
+    "@babel/core": "8.0.7",
+    "@babel/plugin-syntax-jsx": "8.0.1",
+    "@babel/plugin-syntax-typescript": "8.0.3",
     "@vitejs/plugin-react": "6.1.2",
     "fast-check": "4.10.2",
     "playwright": "1.64.1",

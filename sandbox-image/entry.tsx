@@ -31,7 +31,9 @@ function Done() {
   return null;
 }
 
-const index = Number(new URLSearchParams(location.search).get("state") ?? -1);
+const params = new URLSearchParams(location.search);
+const index = Number(params.get("state") ?? -1);
+if (params.get("inspect") === "1") import("./inspector").then((m) => m.startInspector());
 if (index >= 0 && states[index]) {
   createRoot(document.getElementById("cr-root")!).render(
     <Boundary>

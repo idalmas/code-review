@@ -1,10 +1,19 @@
 "use client";
 
+import { useState } from "react";
+
 import { api, renderImageUrl } from "@/lib/api";
 import type { RenderJob, RenderState, Tier } from "@/lib/types";
 import { useJob } from "@/lib/useJob";
 
 import { ErrorNote } from "./FileSummaryPanel";
+import { LiveInspector, type PickTarget } from "./LiveInspector";
+
+export interface RenderComments {
+  resolve: (chain: string[]) => Promise<PickTarget | null>;
+  comment: (target: PickTarget, body: string) => Promise<unknown>;
+  onJump: (path: string) => void;
+}
 
 const RUNNING: RenderJob["status"][] = [
   "queued",
@@ -27,9 +36,10 @@ interface Props {
   start: (path: string, tier: Tier) => Promise<RenderJob>;
   /** Job id previously started for this file, so results survive switching files. */
   jobIdFor: (path: string) => string | undefined;
+  comments: RenderComments;
 }
 
-export function RenderPanel({ path, tier, start, jobIdFor }: Props) {
+export function RenderPanel({ path, tier, start, jobIdFor, comments }: Props) {
   const { job, setJob, error, setError, isRunning } = useJob(
     api.getRender,
     RUNNING,
@@ -68,7 +78,14 @@ export function RenderPanel({ path, tier, start, jobIdFor }: Props) {
         </p>
       )}
       {job?.states.map((state, i) => (
-        <StateRow key={i} jobId={job.id} index={i} state={state} />
+        <StateRow
+          key={i}
+          jobId={job.id}
+          livePath={job.live_path}
+          index={i}
+          state={state}
+          comments={comments}
+        />
       ))}
     </div>
   );
@@ -76,13 +93,18 @@ export function RenderPanel({ path, tier, start, jobIdFor }: Props) {
 
 function StateRow({
   jobId,
+  livePath,
   index,
   state,
+  comments,
 }: {
   jobId: string;
+  livePath: string | null;
   index: number;
   state: RenderState;
+  comments: RenderComments;
 }) {
+  const [live, setLive] = useState(false);
   return (
     <section className="space-y-1">
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -98,7 +120,26 @@ function StateRow({
             {p}
           </span>
         ))}
+        {livePath && state.head && (
+          <button
+            type="button"
+            onClick={() => setLive(!live)}
+            className="ml-auto rounded-md border border-border px-2 py-0.5 hover:bg-selected"
+          >
+            {live ? "Close live view" : "💬 Click to comment"}
+          </button>
+        )}
       </div>
+      {live && livePath && (
+        <LiveInspector
+          livePath={livePath}
+          index={index}
+          state={state}
+          resolve={comments.resolve}
+          comment={comments.comment}
+          onJump={comments.onJump}
+        />
+      )}
       <div className="grid grid-cols-2 gap-3">
         <Shot
           jobId={jobId}

@@ -1,7 +1,9 @@
 import asyncio
 import hashlib
+import hmac
 import json
 import re
+import secrets
 import shutil
 import time
 import uuid
@@ -152,6 +154,17 @@ class RenderServiceImpl:
             raise RenderJobNotFoundError("No such screenshot.")
         return file
 
+    def live_file(self, job_id: str, secret: str, path: str) -> Path:
+        entry = self._jobs.get(job_id)
+        expected = entry and entry.job.live_path and entry.job.live_path.rsplit("/", 1)[-1]
+        if not expected or not hmac.compare_digest(expected, secret):
+            raise RenderJobNotFoundError("Render not found.")
+        root = (entry.directory / "out" / "live").resolve()
+        file = (root / path).resolve()
+        if not file.is_relative_to(root) or not file.is_file():
+            raise RenderJobNotFoundError("No such file.")
+        return file
+
     def _owned(self, job_id: str, viewer: str) -> _Job:
         entry = self._jobs.get(job_id)
         if entry is None or entry.viewer != viewer:
@@ -253,9 +266,10 @@ class RenderServiceImpl:
                 job.status, job.message = "skipped", harness.removeprefix("SKIP:").strip()
                 return
             (directory / "harness.tsx").write_text(harness)
-            (directory / "spec.json").write_text(
-                json.dumps({"harness": "harness.tsx", "versions": spec_versions})
-            )
+            spec = {"harness": "harness.tsx", "versions": spec_versions}
+            if "head" in spec_versions:
+                spec["live"] = "head"  # also build a clickable copy for click-to-comment
+            (directory / "spec.json").write_text(json.dumps(spec))
             shutil.rmtree(directory / "out", ignore_errors=True)
 
             job.status = "rendering"
@@ -273,6 +287,8 @@ class RenderServiceImpl:
             feedback = f"Previous harness:\n```tsx\n{harness}\n```\nIt failed:\n{feedback}"
 
         job.states = _combine(reports, directory)
+        if reports.get("head", {}).get("live"):
+            job.live_path = f"{job.id}/live/{secrets.token_urlsafe(24)}"
         job.status = "done"
         if feedback is not None:
             job.message = "The component couldn't be rendered cleanly; see errors per state."
