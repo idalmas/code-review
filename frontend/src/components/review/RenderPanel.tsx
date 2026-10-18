@@ -24,10 +24,10 @@ const RUNNING: RenderJob["status"][] = [
 ];
 const STEP_LABEL: Partial<Record<RenderJob["status"], string>> = {
   queued: "Queued…",
-  downloading: "Downloading both versions…",
-  installing: "Installing dependencies in the sandbox…",
-  writing_harness: "Writing test states…",
-  rendering: "Rendering before and after…",
+  downloading: "Downloading…",
+  installing: "Installing…",
+  writing_harness: "Preparing…",
+  rendering: "Rendering…",
 };
 
 interface Props {
@@ -64,7 +64,7 @@ export function RenderPanel({ path, tier, start, jobIdFor, comments }: Props) {
           disabled={isRunning}
           className="rounded-md border border-border px-2 py-0.5 text-xs font-medium hover:bg-selected disabled:opacity-50"
         >
-          {job && !isRunning ? "Render again" : "🖼 Render before / after"}
+          {job && !isRunning ? "Render again" : "Render"}
         </button>
         {job && isRunning && (
           <span className="text-xs text-muted">{STEP_LABEL[job.status]}</span>
@@ -113,7 +113,7 @@ function StateRow({
           {state.viewport.width}×{state.viewport.height}
         </span>
         {state.base && state.head && !state.changed && (
-          <span className="text-muted">· no visual change</span>
+          <span className="text-muted">· unchanged</span>
         )}
         {state.problems.map((p) => (
           <span key={p} className="rounded bg-del-bg px-1.5 text-del-fg">
@@ -126,7 +126,7 @@ function StateRow({
             onClick={() => setLive(!live)}
             className="ml-auto rounded-md border border-border px-2 py-0.5 hover:bg-selected"
           >
-            {live ? "Close live view" : "💬 Click to comment"}
+            {live ? "Close" : "Comment on render"}
           </button>
         )}
       </div>
@@ -198,7 +198,7 @@ function Shot({
         </>
       ) : (
         <p className="text-xs text-muted">
-          {version === "base" ? "New in this PR" : "Removed in this PR"}
+          {version === "base" ? "Added" : "Removed"}
         </p>
       )}
     </figure>

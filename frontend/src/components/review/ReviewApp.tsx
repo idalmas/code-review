@@ -356,17 +356,19 @@ export function ReviewApp({ owner, repo, number }: Props) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Escape" && e.currentTarget.blur()}
-              placeholder="Filter files  ( / )"
+              placeholder="Filter files"
               className="w-full rounded-md border border-border bg-bg px-2 py-1 text-sm outline-none focus:border-accent"
             />
-            <label className="flex items-center gap-2 text-xs text-muted">
-              <input
-                type="checkbox"
-                checked={hideNoise}
-                onChange={(e) => setHideNoise(e.target.checked)}
-              />
-              Hide lockfiles &amp; generated ({summary.stats.noise_files})
-            </label>
+            {summary.stats.noise_files > 0 && (
+              <label className="flex items-center gap-2 text-xs text-muted">
+                <input
+                  type="checkbox"
+                  checked={hideNoise}
+                  onChange={(e) => setHideNoise(e.target.checked)}
+                />
+                Hide generated ({summary.stats.noise_files})
+              </label>
+            )}
             <label className="flex items-center gap-2 text-xs text-muted">
               <input
                 type="checkbox"
@@ -383,10 +385,6 @@ export function ReviewApp({ owner, repo, number }: Props) {
             commentCount={(path) => threadsByPath.get(path)?.length ?? 0}
             onSelect={select}
           />
-          <p className="border-t border-border p-2 text-xs text-muted">
-            <kbd>j</kbd>/<kbd>k</kbd> next/prev · <kbd>v</kbd> mark viewed ·{" "}
-            <kbd>/</kbd> filter
-          </p>
         </aside>
         <main className="min-w-0 flex-1 overflow-auto">
           {selected ? (

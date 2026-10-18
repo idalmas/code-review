@@ -15,25 +15,25 @@ const RUNNING: StressJob["status"][] = [
 ];
 const STEP_LABEL: Partial<Record<StressJob["status"], string>> = {
   queued: "Queued…",
-  downloading: "Downloading both versions…",
-  installing: "Installing dependencies in the sandbox…",
-  writing_tests: "Writing stress tests…",
-  running: "Running tests before and after…",
+  downloading: "Downloading…",
+  installing: "Installing…",
+  writing_tests: "Preparing…",
+  running: "Running…",
 };
 const VERDICT: Record<
   NonNullable<StressJob["verdict"]>,
   { text: string; className: string }
 > = {
-  passed: { text: "No failures found", className: "bg-add-bg text-add-fg" },
+  passed: { text: "Passed", className: "bg-add-bg text-add-fg" },
   new_failure: {
-    text: "Fails after this PR (passed before)",
+    text: "New failure",
     className: "bg-del-bg text-del-fg",
   },
   existing_failure: {
-    text: "Fails, but it already failed before this PR",
+    text: "Already failing",
     className: "bg-hunk-bg text-muted",
   },
-  failure: { text: "Fails (new code)", className: "bg-del-bg text-del-fg" },
+  failure: { text: "Failing", className: "bg-del-bg text-del-fg" },
 };
 
 interface Props {
@@ -69,7 +69,7 @@ export function StressPanel({ path, tier, start, jobIdFor }: Props) {
           disabled={isRunning}
           className="rounded-md border border-border px-2 py-0.5 text-xs font-medium hover:bg-selected disabled:opacity-50"
         >
-          {job && !isRunning ? "Stress-test again" : "🧪 Stress-test change"}
+          {job && !isRunning ? "Stress-test again" : "Stress test"}
         </button>
         {job && isRunning && (
           <span className="text-xs text-muted">{STEP_LABEL[job.status]}</span>
@@ -88,15 +88,9 @@ export function StressPanel({ path, tier, start, jobIdFor }: Props) {
         </p>
       )}
       {job?.head && (
-        <RunOutput
-          label="After this PR"
-          run={job.head}
-          open={!job.head.passed}
-        />
+        <RunOutput label="After" run={job.head} open={!job.head.passed} />
       )}
-      {job?.base && (
-        <RunOutput label="Before this PR" run={job.base} open={false} />
-      )}
+      {job?.base && <RunOutput label="Before" run={job.base} open={false} />}
       {job?.test_code && (
         <details>
           <summary className="cursor-pointer text-xs text-muted">

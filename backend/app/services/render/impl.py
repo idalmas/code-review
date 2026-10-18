@@ -404,14 +404,12 @@ def _problems(head: VersionShot | None, base: VersionShot | None) -> list[str]:
         return []
     problems = []
     if head.errors:
-        problems.append(
-            "Crashed or logged errors" + (" (new in this PR)" if base and not base.errors else "")
-        )
+        problems.append("Errors" + (" · new" if base and not base.errors else ""))
     if head.page_overflow or head.overflowing_elements:
         new = base is not None and not (base.page_overflow or base.overflowing_elements)
-        problems.append("Content overflows its box" + (" (new in this PR)" if new else ""))
+        problems.append("Overflow" + (" · new" if new else ""))
     if head.timed_out:
-        problems.append("Didn't finish rendering within 10 seconds")
+        problems.append("Timed out")
     return problems
 
 

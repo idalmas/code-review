@@ -131,7 +131,7 @@ export function FileDiffView({
         </a>
         <label className="flex shrink-0 cursor-pointer items-center gap-1 text-xs">
           <input type="checkbox" checked={viewed} onChange={onToggleViewed} />
-          Viewed <kbd>v</kbd>
+          Viewed
         </label>
       </div>
 

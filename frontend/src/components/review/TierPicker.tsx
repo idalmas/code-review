@@ -7,7 +7,6 @@ interface Props {
 }
 
 export function TierPicker({ status, tier, onChange }: Props) {
-  const current = status.tiers.find((t) => t.tier === tier);
   return (
     <div className="flex items-center gap-2">
       <div
@@ -29,7 +28,6 @@ export function TierPicker({ status, tier, onChange }: Props) {
           </button>
         ))}
       </div>
-      {current && <span className="text-xs text-muted">{current.model}</span>}
     </div>
   );
 }

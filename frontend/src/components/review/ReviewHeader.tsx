@@ -38,7 +38,7 @@ export function ReviewHeader({
           rel="noreferrer"
           className="ml-auto shrink-0 text-sm text-accent hover:underline"
         >
-          Open on GitHub ↗
+          GitHub ↗
         </a>
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
@@ -54,17 +54,12 @@ export function ReviewHeader({
           <span className="text-add-fg">+{stats.additions}</span>{" "}
           <span className="text-del-fg">−{stats.deletions}</span>
         </span>
-        {stats.noise_files > 0 && (
-          <span>
-            {stats.noise_files} lockfile/generated ({stats.noise_lines} lines)
-            set aside
-          </span>
-        )}
+
         <div className="ml-auto flex items-center gap-2">
-          <span>
-            {reviewedFiles}/{totalFiles} files · {pct}% of lines
+          <span title={`${pct}% of changed lines`}>
+            {reviewedFiles}/{totalFiles} viewed
           </span>
-          <div className="h-2 w-40 overflow-hidden rounded-full bg-panel">
+          <div className="h-1.5 w-32 overflow-hidden rounded-full bg-panel">
             <div
               className="h-full bg-add-fg transition-all"
               style={{ width: `${pct}%` }}
@@ -74,8 +69,8 @@ export function ReviewHeader({
       </div>
       {truncated && (
         <p className="text-sm text-del-fg">
-          GitHub only lists the first 3,000 files of a pull request;{" "}
-          {pull.changed_files - stats.files} more aren&apos;t shown.
+          {pull.changed_files - stats.files} files not shown (GitHub lists up to
+          3,000).
         </p>
       )}
     </header>

@@ -93,7 +93,7 @@ async def test_renders_both_versions_offline_after_networked_install(tmp_path) -
     assert job.status == "done", job.message
     assert [s.name for s in job.states] == ["Default", "Long name"]
     assert job.states[0].changed is True
-    assert job.states[1].problems == ["Content overflows its box"]
+    assert job.states[1].problems == ["Overflow"]
     install, render = sandbox.runs
     assert install == {"command": ["/sandbox/install.sh", "/work/base/web", "/work/head/web"],
                        "network": True}  # fmt: skip

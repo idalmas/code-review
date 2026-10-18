@@ -54,9 +54,6 @@ export function CommentComposer({
       />
       <ErrorNote error={error} />
       <div className="flex items-center justify-end gap-2">
-        <span className="mr-auto text-xs text-muted">
-          Posts to GitHub as you · ⌘/Ctrl+Enter
-        </span>
         {onCancel && (
           <button
             type="button"

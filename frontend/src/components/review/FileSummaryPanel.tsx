@@ -58,22 +58,13 @@ export function FileSummaryPanel({ path, tier, summarize, cached }: Props) {
         disabled={pending}
         className="rounded-md border border-border px-2 py-0.5 text-xs font-medium hover:bg-selected disabled:opacity-50"
       >
-        {pending
-          ? "Summarizing…"
-          : summary
-            ? "Summarize again"
-            : "✨ Summarize change"}
+        {pending ? "Summarizing…" : summary ? "Summarize again" : "Summarize"}
       </button>
       <ErrorNote error={error} />
       {summary && (
         <div className="space-y-1">
           {/* Rendered as plain text: model output is never interpreted as HTML. */}
           <p className="whitespace-pre-wrap leading-6">{summary.text}</p>
-          <p className="text-xs text-muted">
-            {summary.model} · {summary.input_tokens.toLocaleString()} in /{" "}
-            {summary.output_tokens.toLocaleString()} out tokens
-            {summary.truncated && " · cut short at the length limit"}
-          </p>
         </div>
       )}
     </div>

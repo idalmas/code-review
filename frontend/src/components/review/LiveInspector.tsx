@@ -74,11 +74,7 @@ export function LiveInspector({
       setPosted(null);
       const resolved = await resolve(next.chain);
       setTarget(resolved);
-      setNotice(
-        resolved
-          ? null
-          : "This element's code isn't changed in this PR, and GitHub only accepts comments on changed lines.",
-      );
+      setNotice(resolved ? null : "Not part of this PR's changes.");
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -88,14 +84,10 @@ export function LiveInspector({
   const src = `/api/renders/${livePath}/index.html?state=${index}&inspect=1`;
   const context =
     pick &&
-    `<sub>📍 On \`<${pick.tag}>\`${pick.text ? ` “${pick.text}”` : ""} in the **${state.name}** render (${width}×${height}), via Orbiter</sub>`;
+    `<sub>${state.name} render · \`<${pick.tag}>\`${pick.text ? ` “${pick.text}”` : ""}</sub>`;
 
   return (
     <div className="space-y-2 rounded-md border border-accent/40 p-2">
-      <p className="text-xs text-muted">
-        Live render of the PR&apos;s code. Hover to highlight, click any element
-        to comment on the line that produced it.
-      </p>
       <div className="max-h-[480px] overflow-auto rounded border border-border bg-white">
         <iframe
           ref={frame}
@@ -117,7 +109,6 @@ export function LiveInspector({
       {pick && target && !posted && (
         <div className="space-y-2 rounded-md bg-panel p-2">
           <p className="text-xs">
-            Comment on{" "}
             <button
               type="button"
               className="font-mono text-accent"
@@ -126,9 +117,12 @@ export function LiveInspector({
               {target.path}:{target.line}
             </button>
             {!target.exact && (
-              <span className="text-muted">
+              <span
+                className="text-muted"
+                title={`Element from ${target.source}`}
+              >
                 {" "}
-                (nearest changed line; the element comes from {target.source})
+                · nearest changed line
               </span>
             )}
           </p>
@@ -151,8 +145,7 @@ export function LiveInspector({
             onClick={() => onJump(posted.path)}
           >
             {posted.path}:{posted.line}
-          </button>{" "}
-          — it&apos;s on GitHub and in the diff.
+          </button>
         </p>
       )}
     </div>
