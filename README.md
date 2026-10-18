@@ -33,7 +33,7 @@ backend/   FastAPI REST API (Python 3.12+, uv)
     config.py        settings from env / .env
     api/             thin HTTP layer: routes, dependency wiring, error mapping
     services/        ALL business logic (see backend/app/services/README.md)
-      auth/          Sign in with GitHub (OAuth), encrypted cookie sessions
+      auth/          Sign in with GitHub (GitHub App), encrypted cookie sessions
       links/         GitHub URL → PR reference
       llm/           Anthropic or OpenAI behind three tiers (cheap / balanced / best)
       github/        GitHub REST client with caching + pagination
@@ -85,10 +85,10 @@ cp backend/.env.example backend/.env
 ./dev.sh                               # API on :8000, web on :3000
 ```
 
-To enable sign-in (needed for private repos, and for more than 60 GitHub requests/hour), create
-a GitHub OAuth app at **GitHub → Settings → Developer settings → OAuth Apps → New OAuth App**
+To enable sign-in (needed for commenting, private repos, and more than 60 GitHub requests/hour),
+create a GitHub App as described in [docs/self-hosting.md](docs/self-hosting.md#github-app)
 with callback URL `http://localhost:3000/api/auth/callback`, then fill in `GITHUB_CLIENT_ID`,
-`GITHUB_CLIENT_SECRET` and `SESSION_SECRET` in `backend/.env`.
+`GITHUB_CLIENT_SECRET`, `GITHUB_APP_SLUG` and `SESSION_SECRET` in `backend/.env`.
 
 To enable AI summaries, also set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`. The tiers map to:
 

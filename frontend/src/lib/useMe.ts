@@ -9,7 +9,11 @@ import type { Me } from "./types";
 export function useMe(): Me | undefined {
   const [me, setMe] = useState<Me>();
   useEffect(() => {
-    api.me().then(setMe, () => setMe({ login_enabled: false, user: null }));
+    api
+      .me()
+      .then(setMe, () =>
+        setMe({ login_enabled: false, user: null, install_url: null }),
+      );
   }, []);
   return me;
 }

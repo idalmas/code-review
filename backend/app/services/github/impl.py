@@ -4,7 +4,7 @@ import tarfile
 import tempfile
 import time
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -17,6 +17,7 @@ from .types import (
     GitHubUser,
     NotFoundError,
     OAuthExchangeError,
+    OAuthTokens,
     PullRequest,
     RateLimitError,
     ReviewComment,
@@ -201,27 +202,43 @@ class GitHubServiceImpl:
 
     async def exchange_oauth_code(
         self, *, client_id: str, client_secret: str, code: str, redirect_uri: str
-    ) -> str:
+    ) -> OAuthTokens:
+        return await self._token_request(
+            client_id=client_id, client_secret=client_secret, code=code, redirect_uri=redirect_uri
+        )
+
+    async def refresh_oauth_token(
+        self, *, client_id: str, client_secret: str, refresh_token: str
+    ) -> OAuthTokens:
+        return await self._token_request(
+            client_id=client_id,
+            client_secret=client_secret,
+            grant_type="refresh_token",
+            refresh_token=refresh_token,
+        )
+
+    async def _token_request(self, **form: str) -> OAuthTokens:
         try:
             response = await self._client.post(
                 f"{self._web_url}/login/oauth/access_token",
                 headers={"Accept": "application/json"},
-                data={
-                    "client_id": client_id,
-                    "client_secret": client_secret,
-                    "code": code,
-                    "redirect_uri": redirect_uri,
-                },
+                data=form,
             )
         except httpx.HTTPError as exc:
             raise GitHubError(f"Couldn't reach GitHub: {exc}") from exc
         # GitHub answers 200 even for bad codes, with an `error` field instead of a token.
         body = response.json() if response.is_success else {}
-        token = body.get("access_token")
-        if not token:
+        if not body.get("access_token"):
             reason = body.get("error_description") or body.get("error") or response.status_code
             raise OAuthExchangeError(f"GitHub sign-in failed: {reason}")
-        return token
+        expires_in = body.get("expires_in")
+        return OAuthTokens(
+            access_token=body["access_token"],
+            refresh_token=body.get("refresh_token"),
+            expires_at=datetime.now(UTC) + timedelta(seconds=int(expires_in))
+            if expires_in
+            else None,
+        )
 
     async def aclose(self) -> None:
         await self._client.aclose()

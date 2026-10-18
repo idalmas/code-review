@@ -64,6 +64,7 @@ export interface CommentThread {
 export interface Me {
   login_enabled: boolean;
   user: GitHubUser | null;
+  install_url: string | null;
 }
 
 export interface PullRequest {

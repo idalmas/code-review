@@ -14,10 +14,13 @@ class Settings(BaseSettings):
     # Public URL people open in the browser (the Next.js app). GitHub redirects back here.
     app_url: str = "http://localhost:3000"
 
-    # GitHub OAuth app (Settings → Developer settings → OAuth Apps).
+    # GitHub App (recommended) or OAuth app credentials. See docs/self-hosting.md.
     # Callback URL to register: {app_url}/api/auth/callback
     github_client_id: str | None = None
     github_client_secret: str | None = None
+    # The App's URL name (github.com/apps/<slug>), for "install on more repos" links.
+    github_app_slug: str | None = None
+    # Only used by OAuth apps; GitHub Apps get their permissions from the App's settings.
     github_oauth_scopes: str = "repo read:user"
 
     # Change both for GitHub Enterprise Server, e.g. https://ghe.example.com(/api/v3).

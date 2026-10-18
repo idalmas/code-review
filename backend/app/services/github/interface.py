@@ -10,6 +10,7 @@ from .types import (
     GitHubUser,
     NotFoundError,
     OAuthExchangeError,
+    OAuthTokens,
     PullRequest,
     RateLimitError,
     ReviewComment,
@@ -26,6 +27,7 @@ __all__ = [
     "GitHubUser",
     "NotFoundError",
     "OAuthExchangeError",
+    "OAuthTokens",
     "PullRequest",
     "RateLimitError",
     "ReviewComment",
@@ -106,9 +108,16 @@ class GitHubService(Protocol):
 
     async def exchange_oauth_code(
         self, *, client_id: str, client_secret: str, code: str, redirect_uri: str
-    ) -> str:
-        """Trade an OAuth authorization code for an access token.
+    ) -> OAuthTokens:
+        """Trade an OAuth authorization code for the user's tokens.
         Raises `OAuthExchangeError` if GitHub rejects it."""
+        ...
+
+    async def refresh_oauth_token(
+        self, *, client_id: str, client_secret: str, refresh_token: str
+    ) -> OAuthTokens:
+        """Swap a (single-use) refresh token for fresh tokens, for GitHub App user tokens.
+        Raises `OAuthExchangeError` if it was revoked, expired or already used."""
         ...
 
     async def aclose(self) -> None:

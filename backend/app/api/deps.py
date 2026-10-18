@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, Request, Response
 
 from app.config import get_settings
 from app.services.auth import AuthService, Session, create_auth_service
@@ -115,10 +115,30 @@ def get_auth_service() -> AuthService:
     )
 
 
-def get_session(
-    request: Request, auth: Annotated[AuthService, Depends(get_auth_service)]
+def set_cookie(response: Response, name: str, value: str, max_age: int, *, path: str) -> None:
+    response.set_cookie(
+        name,
+        value,
+        max_age=max_age,
+        path=path,
+        httponly=True,
+        samesite="lax",
+        secure=get_settings().secure_cookies,
+    )
+
+
+async def get_session(
+    request: Request,
+    response: Response,
+    auth: Annotated[AuthService, Depends(get_auth_service)],
 ) -> Session | None:
-    return auth.read_session(request.cookies.get(SESSION_COOKIE))
+    loaded = await auth.load_session(request.cookies.get(SESSION_COOKIE))
+    if loaded.new_cookie:  # GitHub App token was refreshed
+        max_age = get_settings().session_max_age_days * 24 * 3600
+        set_cookie(response, SESSION_COOKIE, loaded.new_cookie, max_age, path="/")
+    elif loaded.clear_cookie:
+        response.delete_cookie(SESSION_COOKIE, path="/")
+    return loaded.session
 
 
 def get_viewer_token(session: Annotated[Session | None, Depends(get_session)]) -> str | None:

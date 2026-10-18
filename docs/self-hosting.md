@@ -20,15 +20,12 @@ browser ──► web (Next.js, :3000) ──► backend (FastAPI, internal) ─
 
 ## Deploy with Docker Compose
 
-1. **Create a GitHub OAuth app** (GitHub → Settings → Developer settings → OAuth Apps → New,
-   or under your organization's settings so it's owned by the org).
-   - Homepage URL: `https://review.yourcompany.com`
-   - Authorization callback URL: `https://review.yourcompany.com/api/auth/callback`
+1. **Create a GitHub App** (see [below](#github-app)).
 2. **Configure** the backend:
    ```bash
    cp backend/.env.example backend/.env
    ```
-   Set `APP_URL`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and
+   Set `APP_URL`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_APP_SLUG`, and
    `SESSION_SECRET` (`openssl rand -base64 32`).
    For GitHub Enterprise Server also set `GITHUB_WEB_URL` and `GITHUB_API_URL`.
 3. **Run it:**
@@ -100,16 +97,37 @@ Assumptions: a React frontend installed with npm, pnpm or yarn (Next.js `Link`, 
 navigation hooks are replaced with simple stand-ins), and a Node/Bun or Python backend
 (`package.json`, or `pyproject.toml`/`requirements.txt`, optionally with `uv.lock`).
 
+## GitHub App
+
+Orbiter signs people in through a GitHub App you own (create it under your organization:
+**Settings → Developer settings → GitHub Apps → New GitHub App**):
+
+- **Homepage URL:** your `APP_URL`, e.g. `https://review.yourcompany.com`
+- **Callback URL:** `<APP_URL>/api/auth/callback`
+- **Expire user authorization tokens:** on (Orbiter refreshes them automatically)
+- **Webhook:** off. Orbiter doesn't need one.
+- **Repository permissions:**
+  - Contents: **Read** (to render components and run checks on the PR's code)
+  - Pull requests: **Read and write** (to read the diff and post review comments)
+  - Metadata: Read (required by GitHub)
+- **Where can this app be installed:** only this account
+
+Then **Generate a client secret**, copy the Client ID, and note the App's URL name
+(`github.com/apps/<slug>`) for `GITHUB_APP_SLUG`. Install the App on the repositories you want
+to review. People can only use Orbiter on repos where it's installed *and* they have access.
+
+An OAuth app also works (same settings, no slug), but it can only ask for the broad `repo`
+scope, so a GitHub App is recommended.
+
 ## Access model
 
-- Every GitHub request uses the signed-in user's own OAuth token, so people only see repos
-  they can already see on GitHub. Signed-out visitors can only open public repos.
-- The OAuth app requests the `repo` scope because GitHub OAuth apps have no read-only scope
-  for private repos. The app itself only performs reads. Narrow it with
-  `GITHUB_OAUTH_SCOPES=read:user` if you only review public repos.
+- Every GitHub request uses the signed-in user's own token, so people only see repos they
+  can already see on GitHub. Signed-out visitors can only open public repos.
+- Review comments are posted as the person who wrote them, never as a shared bot account.
+- GitHub App tokens are scoped to the permissions above and the repos the App is installed
+  on, and expire after 8 hours.
 - Restrict who can sign in the same way you restrict any internal tool: network policy, VPN,
-  or your SSO proxy in front of the web container. If your GitHub org enforces OAuth app
-  access restrictions, an org owner must approve the app.
+  or your SSO proxy in front of the web container.
 
 ## Compliance (SOC 2 and friends)
 

@@ -1,3 +1,4 @@
+from datetime import timedelta
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -79,7 +80,11 @@ def test_not_found_errors(client) -> None:
 
 
 def test_signed_out_me(client) -> None:
-    assert client.get("/api/auth/me").json() == {"login_enabled": True, "user": None}
+    assert client.get("/api/auth/me").json() == {
+        "login_enabled": True,
+        "user": None,
+        "install_url": None,
+    }
 
 
 def test_sign_in_then_private_repo_uses_viewer_token(client, github) -> None:
@@ -172,3 +177,12 @@ def test_commenting_requires_sign_in(client, github) -> None:
 
     res = client.post("/api/repos/acme/api/pulls/7/comments", json={**body, "line": 99})
     assert (res.status_code, res.json()["code"]) == (422, "invalid_comment")
+
+
+def test_expiring_github_app_session_is_refreshed_on_the_response(client, github) -> None:
+    github.token_lifetime = timedelta(minutes=5)  # GitHub App token, about to expire
+    sign_in(client)
+    res = client.get("/api/auth/me")
+    assert res.json()["user"]["login"] == "octocat"
+    assert SESSION_COOKIE in res.headers["set-cookie"]  # rotated session cookie
+    assert github.refreshes == ["refresh-1"]

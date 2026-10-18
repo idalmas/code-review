@@ -42,6 +42,14 @@ class GitHubUser(BaseModel):
     is_bot: bool = False
 
 
+class OAuthTokens(BaseModel):
+    access_token: str
+    # GitHub Apps issue expiring user tokens plus a single-use refresh token.
+    # OAuth apps issue a non-expiring token and neither of these.
+    refresh_token: str | None = None
+    expires_at: datetime | None = None
+
+
 class ValidationFailedError(GitHubError):
     """GitHub refused the write, e.g. a comment on a line that isn't part of the diff."""
 

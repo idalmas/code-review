@@ -5,6 +5,7 @@ from app.services.github import (
     GitHubUser,
     NotFoundError,
     OAuthExchangeError,
+    OAuthTokens,
     PullRequest,
     ReviewComment,
 )
@@ -62,6 +63,7 @@ class FakeGitHubService:
         self.tokens_seen: list[str | None] = []
         self.comments = []
         self.posted = []
+        self.refreshes = []
         # When set, only this token may read the PR (simulates a private repo).
         self.private_to: str | None = None
 
@@ -112,12 +114,30 @@ class FakeGitHubService:
     async def get_viewer(self, *, token: str) -> GitHubUser:
         return GitHubUser(login="octocat", avatar_url="https://x/a.png", name="Octo Cat")
 
+    # None = OAuth app (non-expiring); a timedelta = GitHub App token lifetime.
+    token_lifetime = None
+    refreshes: list[str] = []
+
     async def exchange_oauth_code(
         self, *, client_id: str, client_secret: str, code: str, redirect_uri: str
-    ) -> str:
+    ) -> OAuthTokens:
         if code != self.VALID_CODE:
             raise OAuthExchangeError("bad_verification_code")
-        return self.TOKEN
+        return self._tokens(self.TOKEN, "refresh-1")
+
+    async def refresh_oauth_token(self, *, client_id, client_secret, refresh_token) -> OAuthTokens:
+        self.refreshes.append(refresh_token)
+        if refresh_token != f"refresh-{len(self.refreshes)}":
+            raise OAuthExchangeError("bad_refresh_token")
+        return self._tokens(
+            f"{self.TOKEN}-{len(self.refreshes)}", f"refresh-{len(self.refreshes) + 1}"
+        )
+
+    def _tokens(self, access: str, refresh: str) -> OAuthTokens:
+        if self.token_lifetime is None:
+            return OAuthTokens(access_token=access)
+        return OAuthTokens(access_token=access, refresh_token=refresh,
+                           expires_at=datetime.now(UTC) + self.token_lifetime)  # fmt: skip
 
     async def aclose(self) -> None:
         pass

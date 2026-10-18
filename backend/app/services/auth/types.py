@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 from app.services.github import GitHubUser
@@ -13,8 +15,19 @@ class LoginError(Exception):
 
 class Session(BaseModel):
     user: GitHubUser
-    # The viewer's GitHub OAuth token. Only ever stored encrypted, in an httpOnly cookie.
+    # The viewer's GitHub token. Only ever stored encrypted, in an httpOnly cookie.
     token: str
+    # GitHub App user tokens expire (8h) and come with a single-use refresh token.
+    refresh_token: str | None = None
+    expires_at: datetime | None = None
+
+
+class SessionLoad(BaseModel):
+    session: Session | None
+    # Set when the session was refreshed: store this as the new session cookie.
+    new_cookie: str | None = None
+    # Set when the session can't be used any more (refresh failed): delete the cookie.
+    clear_cookie: bool = False
 
 
 class LoginStart(BaseModel):

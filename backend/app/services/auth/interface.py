@@ -2,7 +2,14 @@ from typing import Protocol
 
 from app.services.github import GitHubService
 
-from .types import LoginError, LoginNotConfiguredError, LoginResult, LoginStart, Session
+from .types import (
+    LoginError,
+    LoginNotConfiguredError,
+    LoginResult,
+    LoginStart,
+    Session,
+    SessionLoad,
+)
 
 __all__ = [
     "AuthService",
@@ -11,6 +18,7 @@ __all__ = [
     "LoginResult",
     "LoginStart",
     "Session",
+    "SessionLoad",
     "STATE_TTL_SECONDS",
     "create_auth_service",
 ]
@@ -20,8 +28,9 @@ STATE_TTL_SECONDS = 600
 
 
 class AuthService(Protocol):
-    """Sign in with GitHub (OAuth web flow). Stateless: sessions live in encrypted cookies,
-    so there is no database and nothing to back up or breach server-side."""
+    """Sign in with GitHub, as a GitHub App (recommended: fine-grained permissions, expiring
+    tokens) or an OAuth app. Stateless: sessions live in encrypted cookies, so there is no
+    database and nothing to back up or breach server-side."""
 
     def is_enabled(self) -> bool:
         """False until a GitHub OAuth app's client ID and secret are configured."""
@@ -38,8 +47,10 @@ class AuthService(Protocol):
         """Finish sign-in from GitHub's callback. Raises `LoginError`."""
         ...
 
-    def read_session(self, session_cookie: str | None) -> Session | None:
-        """The signed-in session, or None if missing, expired or tampered with."""
+    async def load_session(self, session_cookie: str | None) -> SessionLoad:
+        """The signed-in session (None if missing, expired or tampered with), refreshing
+        GitHub App tokens shortly before they expire. Callers must apply `new_cookie` /
+        `clear_cookie` to the response."""
         ...
 
 

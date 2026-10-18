@@ -310,18 +310,21 @@ export function ReviewApp({ owner, repo, number }: Props) {
   }, [move, toggleViewed]);
 
   if (error) {
-    const signInMightHelp =
+    const accessProblem =
       error instanceof ApiError &&
-      ["not_found", "unauthorized", "rate_limited"].includes(error.code) &&
-      me?.login_enabled &&
-      !me.user;
+      ["not_found", "unauthorized", "rate_limited"].includes(error.code);
     return (
       <div className="mx-auto max-w-xl space-y-3 p-8">
         <h1 className="text-lg font-semibold">
           Couldn&apos;t load this pull request
         </h1>
         <p className="text-muted">{error.message}</p>
-        {signInMightHelp && <SignInButton />}
+        {accessProblem && me?.login_enabled && !me.user && <SignInButton />}
+        {accessProblem && me?.user && me.install_url && (
+          <a href={me.install_url} className="text-accent hover:underline">
+            Install Orbiter on this repository ↗
+          </a>
+        )}
       </div>
     );
   }

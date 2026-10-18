@@ -1,3 +1,5 @@
+import asyncio
+from datetime import timedelta
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -40,7 +42,7 @@ async def test_full_login_round_trip() -> None:
     assert result.return_to == "/acme/api/pull/7"
     assert FakeGitHubService.TOKEN not in result.session_cookie  # encrypted, not just encoded
 
-    session = auth.read_session(result.session_cookie)
+    session = (await auth.load_session(result.session_cookie)).session
     assert session.user.login == "octocat"
     assert session.token == FakeGitHubService.TOKEN
 
@@ -86,13 +88,17 @@ async def test_sessions_resist_tampering_and_other_keys() -> None:
     result = await auth.complete_login(
         code="good-code", state=state_of(start.authorize_url), state_cookie=start.state_cookie
     )
-    assert auth.read_session(None) is None
-    assert auth.read_session("garbage") is None
-    assert auth.read_session(result.session_cookie[:-4] + "AAAA") is None
+
+    async def session_of(auth, cookie):
+        return (await auth.load_session(cookie)).session
+
+    assert await session_of(auth, None) is None
+    assert await session_of(auth, "garbage") is None
+    assert await session_of(auth, result.session_cookie[:-4] + "AAAA") is None
     # A state cookie must not be accepted as a session.
-    assert auth.read_session(start.state_cookie) is None
+    assert await session_of(auth, start.state_cookie) is None
     # Another deployment's secret can't read this deployment's cookies.
-    assert make_auth(session_secret="other").read_session(result.session_cookie) is None
+    assert await session_of(make_auth(session_secret="other"), result.session_cookie) is None
 
 
 def test_disabled_without_credentials() -> None:
@@ -100,3 +106,44 @@ def test_disabled_without_credentials() -> None:
     assert not auth.is_enabled()
     with pytest.raises(LoginNotConfiguredError):
         auth.start_login("/")
+
+
+async def _github_app_login(lifetime: timedelta):
+    github = FakeGitHubService(make_pull(), SAMPLE_FILES)
+    github.token_lifetime = lifetime
+    auth = make_auth(github=github)
+    start = auth.start_login("/")
+    result = await auth.complete_login(
+        code="good-code", state=state_of(start.authorize_url), state_cookie=start.state_cookie
+    )
+    return auth, github, result.session_cookie
+
+
+async def test_github_app_tokens_refresh_once_even_under_concurrency() -> None:
+    auth, github, cookie = await _github_app_login(timedelta(minutes=5))  # inside the margin
+
+    loads = await asyncio.gather(*(auth.load_session(cookie) for _ in range(5)))
+
+    assert github.refreshes == ["refresh-1"]  # the single-use token is spent exactly once
+    assert {load.session.token for load in loads} == {f"{FakeGitHubService.TOKEN}-1"}
+    assert all(load.new_cookie for load in loads)
+    # A request still carrying the old cookie (e.g. an image response that couldn't update
+    # it) gets the same refreshed session instead of being signed out.
+    again = await auth.load_session(cookie)
+    assert again.session.token == f"{FakeGitHubService.TOKEN}-1" and github.refreshes == [
+        "refresh-1"
+    ]
+
+
+async def test_fresh_github_app_tokens_are_used_as_is() -> None:
+    auth, github, cookie = await _github_app_login(timedelta(hours=8))
+    load = await auth.load_session(cookie)
+    assert load.session.token == FakeGitHubService.TOKEN and load.new_cookie is None
+    assert github.refreshes == []
+
+
+async def test_revoked_refresh_token_signs_out() -> None:
+    auth, github, cookie = await _github_app_login(timedelta(minutes=5))
+    github.refreshes.append("someone else used it")  # next expected token no longer matches
+    load = await auth.load_session(cookie)
+    assert load.session is None and load.clear_cookie

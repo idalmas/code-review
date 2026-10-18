@@ -105,15 +105,29 @@ async def test_errors_are_mapped() -> None:
 async def test_exchange_oauth_code() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert str(request.url) == "https://github.test/login/oauth/access_token"
+        if (
+            b"grant_type=refresh_token" in request.content
+            and b"refresh_token=r1" in request.content
+        ):
+            return httpx.Response(200, json={"access_token": "ghu_2", "expires_in": 28800,
+                                             "refresh_token": "r2"})  # fmt: skip
         if b"code=good" in request.content:
             return httpx.Response(200, json={"access_token": "gho_x", "token_type": "bearer"})
         return httpx.Response(200, json={"error": "bad_verification_code"})
 
     service, _ = make_service(handler)
     args = dict(client_id="id", client_secret="s", redirect_uri="http://app/cb")
-    assert await service.exchange_oauth_code(code="good", **args) == "gho_x"
+    tokens = await service.exchange_oauth_code(code="good", **args)
+    assert (tokens.access_token, tokens.refresh_token, tokens.expires_at) == ("gho_x", None, None)
     with pytest.raises(OAuthExchangeError):
         await service.exchange_oauth_code(code="bad", **args)
+
+    refreshed = await service.refresh_oauth_token(client_id="id", client_secret="s",
+                                                  refresh_token="r1")  # fmt: skip
+    assert (refreshed.access_token, refreshed.refresh_token) == ("ghu_2", "r2")
+    assert refreshed.expires_at is not None
+    with pytest.raises(OAuthExchangeError):
+        await service.refresh_oauth_token(client_id="id", client_secret="s", refresh_token="old")
 
 
 def _tar(tmp_path, members: list[tarfile.TarInfo]):
