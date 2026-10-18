@@ -1,5 +1,7 @@
 # Orbiter: project notes for Claude
 
+Local setup, demo mode, and how UI feedback maps to code: see `AGENTS.md`.
+
 ## Commits
 
 - Author every commit as the repo owner: `Ian Dalmas <160072332+idalmas@users.noreply.github.com>`

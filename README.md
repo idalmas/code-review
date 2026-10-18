@@ -82,36 +82,13 @@ Next.js origin, which proxies to FastAPI (`BACKEND_URL`).
 
 ## Running locally
 
-Needs [uv](https://docs.astral.sh/uv/) and [pnpm](https://pnpm.io/).
-
 ```bash
-cp backend/.env.example backend/.env
-./dev.sh                               # API on :8000, web on :3000
+./dev.sh demo   # sample PRs against a built-in fake GitHub + LLM, no setup needed
+./dev.sh        # real GitHub, configured in backend/.env
 ```
 
-To enable sign-in (needed for commenting, private repos, and more than 60 GitHub requests/hour),
-create a GitHub App as described in [docs/self-hosting.md](docs/self-hosting.md#github-app)
-with callback URL `http://localhost:3000/api/auth/callback`, then fill in `GITHUB_CLIENT_ID`,
-`GITHUB_CLIENT_SECRET`, `GITHUB_APP_SLUG` and `SESSION_SECRET` in `backend/.env`.
-
-To enable AI summaries, also set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`. The tiers map to:
-
-| Tier     | Anthropic (default)  | OpenAI (default) |
-| -------- | -------------------- | ---------------- |
-| Cheap    | Claude Haiku 5.5     | GPT-6 Luna       |
-| Balanced | Claude Sonnet 5.5    | GPT-5.6 Terra    |
-| Best     | Claude Opus 5.5      | GPT-6.1 Sol      |
-
-Override any of them with `LLM_MODEL_CHEAP` / `LLM_MODEL_BALANCED` / `LLM_MODEL_BEST`.
-
-To enable component renders and stress tests (needs Docker and an LLM key):
-
-```bash
-docker build -t orbiter-sandbox sandbox-image
-echo SANDBOX_ENABLED=true >> backend/.env
-```
-
-Then open http://localhost:3000.
+Full setup (GitHub App, API keys, renders) and how to give UI feedback: [AGENTS.md](AGENTS.md).
+Self-hosting for a team: [docs/self-hosting.md](docs/self-hosting.md).
 
 ## Self-hosting
 
