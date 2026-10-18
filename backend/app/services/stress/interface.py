@@ -64,9 +64,10 @@ def create_stress_service(
     sandbox: SandboxService,
     work_dir: Path,
     image: str = "orbiter-sandbox",
+    enabled: bool = True,
 ) -> StressService:
     from .impl import StressServiceImpl
 
     return StressServiceImpl(
-        github=github, llm=llm, sandbox=sandbox, work_dir=work_dir, image=image
+        github=github, llm=llm, sandbox=sandbox, work_dir=work_dir, image=image, enabled=enabled
     )

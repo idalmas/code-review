@@ -6,6 +6,11 @@
   (set `git config user.name/user.email` in a fresh checkout, or pass `--author`).
 - Credit Claude with a `Co-Authored-By:` trailer at the end of the message, never as the author.
 
+## Product direction
+
+Orbiter owns the review surface (reading, rendering, commenting) and plugs into review bots
+for bug-finding rather than competing with them. See ROADMAP.md before adding features.
+
 ## Backend services
 
 Follow `backend/app/services/README.md`: one folder per service with `types.py`,

@@ -14,15 +14,19 @@ Paste a PR link (or swap `github.com` for this app's host in any PR URL) and you
 - **Lazy per-file diffs** with the next file prefetched, so thousands of files stay fast.
 - **AI summaries per file** with a Cheap / Balanced / Best picker. Bring your own Anthropic
   or OpenAI key; with no key, AI features stay hidden.
+- **Review threads inline**, including comments from Claude Code Review, Greptile and other
+  review bots. Hover any diff line to comment, reply in place; everything posts to GitHub as you.
 - **Before/after renders of changed React components**, side by side, in typical and stress
   states (very long text, empty, many items, emoji/RTL, phone width), with automatic checks
   for crashes, console errors and overflowing layout. An LLM writes the props; the PR's code
   runs in a locked-down Docker container.
-- **Stress tests for changed backend code** (Python, Node/Bun JS/TS): an LLM writes
-  property-based tests (Hypothesis / fast-check) with extreme inputs, run before and after the
-  PR, so you see "fails after this PR" with the exact input that breaks it.
-- **Sign in with GitHub**: every request runs as the signed-in user, so you see exactly the
-  repos you can see on GitHub. Sessions are encrypted httpOnly cookies, with no database.
+- **Click to comment on a render**: click any element of the live render and comment on the
+  line of code that produced it.
+- **Sign in with a GitHub App**: every request runs as the signed-in user, so you see exactly
+  the repos you can see on GitHub. Sessions are encrypted httpOnly cookies, with no database.
+
+See [ROADMAP.md](ROADMAP.md) for what's next. Experimental and off by default: LLM-written
+stress tests for changed backend code (`STRESS_TESTS_ENABLED=true`).
 
 ## Layout
 
@@ -41,7 +45,7 @@ backend/   FastAPI REST API (Python 3.12+, uv)
       review/        builds the review model from the services above
       sandbox/       runs untrusted code in locked-down Docker containers
       render/        before/after component renders (downloads both commits, LLM harness)
-      stress/        property-based stress tests of changed backend functions
+      stress/        experimental: property-based stress tests of changed backend code
 sandbox-image/  Docker image for the sandbox: Vite + Chromium renderer, pytest/Hypothesis,
                 node:test/fast-check
   tests/

@@ -145,3 +145,10 @@ async def test_typescript_backend_files(tmp_path) -> None:
     assert "import { test } from 'node:test'" in llm.requests[0].prompt
     test_run = sandbox.runs[-1]["command"]
     assert test_run[0] == "node" and test_run[-1] == "/work/head/server/cr-stress.test.mts"
+
+
+def test_off_unless_enabled(tmp_path) -> None:
+    sandbox, llm = FakeSandbox({}), FakeLLMService()
+    off = create_stress_service(github=None, llm=llm, sandbox=sandbox, work_dir=tmp_path,
+                                enabled=False)  # fmt: skip
+    assert off.is_enabled() is False

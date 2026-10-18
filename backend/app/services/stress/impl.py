@@ -97,7 +97,9 @@ class StressServiceImpl:
         sandbox: SandboxService,
         work_dir: Path,
         image: str,
+        enabled: bool,
     ) -> None:
+        self._enabled = enabled
         self._github = github
         self._llm = llm
         self._sandbox = sandbox
@@ -108,7 +110,7 @@ class StressServiceImpl:
         self._tasks: set[asyncio.Task] = set()
 
     def is_enabled(self) -> bool:
-        return self._sandbox.is_available() and self._llm.status().enabled
+        return self._enabled and self._sandbox.is_available() and self._llm.status().enabled
 
     async def start(
         self,
@@ -123,7 +125,7 @@ class StressServiceImpl:
     ) -> StressJob:
         if not self.is_enabled():
             raise StressUnavailableError(
-                "Stress tests need Docker (SANDBOX_ENABLED=true) and an LLM API key."
+                "Stress tests need STRESS_TESTS_ENABLED, SANDBOX_ENABLED and an LLM key."
             )
         language = _LANGUAGES.get(PurePosixPath(path).suffix)
         if language is None or _TEST_FILE_RE.search(path):

@@ -97,6 +97,7 @@ def get_stress_service() -> StressService:
         sandbox=get_sandbox_service(),
         work_dir=Path(settings.sandbox_work_dir) / "stress",
         image=settings.sandbox_image,
+        enabled=settings.stress_tests_enabled,
     )
 
 

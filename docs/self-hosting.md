@@ -57,8 +57,9 @@ Two features run the PR's own code, in Docker containers started by the backend:
 
 - **Renders:** a changed React component, before and after, in typical and stress states,
   screenshotted in Chromium.
-- **Stress tests:** property-based tests (Hypothesis for Python, fast-check for Node/Bun
-  JS/TS) for the functions a PR changed, run before and after.
+- **Stress tests** (experimental, also needs `STRESS_TESTS_ENABLED=true`): property-based
+  tests (Hypothesis for Python, fast-check for Node/Bun JS/TS) for the functions a PR
+  changed, run before and after.
 
 Each job:
 
