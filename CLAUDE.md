@@ -1,4 +1,4 @@
-# Orbiter: project notes for Claude
+# Cypher: project notes for Claude
 
 Local setup, demo mode, and how UI feedback maps to code: see `AGENTS.md`.
 
@@ -10,7 +10,7 @@ Local setup, demo mode, and how UI feedback maps to code: see `AGENTS.md`.
 
 ## Product direction
 
-Orbiter owns the review surface (reading, rendering, commenting) and plugs into review bots
+Cypher owns the review surface (reading, rendering, commenting) and plugs into review bots
 for bug-finding rather than competing with them. See ROADMAP.md before adding features.
 
 ## Backend services

@@ -1,5 +1,5 @@
 // Vite plugin: stamps every HTML element written in the repo's own JSX with
-// data-orbiter-src="<repo path>:<line>", so a click on the rendered page can be traced back
+// data-cypher-src="<repo path>:<line>", so a click on the rendered page can be traced back
 // to the line of code that produced it. Only adds attributes; never changes behavior.
 import path from "node:path";
 import { transformAsync } from "@babel/core";
@@ -8,7 +8,7 @@ import syntaxTypescript from "@babel/plugin-syntax-typescript";
 
 export function sourceTags({ appRoot, repoPrefix }) {
   return {
-    name: "orbiter-source-tags",
+    name: "cypher-source-tags",
     enforce: "pre",
     async transform(code, id) {
       const file = id.split("?")[0];
@@ -31,7 +31,7 @@ export function sourceTags({ appRoot, repoPrefix }) {
                 if (name.type !== "JSXIdentifier" || !/^[a-z]/.test(name.name) || !p.node.loc) return;
                 p.node.attributes.push(
                   t.jsxAttribute(
-                    t.jsxIdentifier("data-orbiter-src"),
+                    t.jsxIdentifier("data-cypher-src"),
                     t.stringLiteral(`${repoPath}:${p.node.loc.start.line}`),
                   ),
                 );

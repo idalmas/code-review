@@ -1,8 +1,8 @@
-# Orbiter roadmap
+# Cypher roadmap
 
-Orbiter is the place you review a pull request: read the diff, see the UI change, and talk
+Cypher is the place you review a pull request: read the diff, see the UI change, and talk
 about it. Finding bugs is left to review bots (Claude Code Review, Greptile, CodeRabbit, …);
-Orbiter makes their findings and your own comments easy to work through. It runs on your own
+Cypher makes their findings and your own comments easy to work through. It runs on your own
 infrastructure against your own GitHub App.
 
 ## Shipped
@@ -61,4 +61,4 @@ infrastructure against your own GitHub App.
 
 - **Stress tests** (`STRESS_TESTS_ENABLED`): an LLM writes property-based tests (Hypothesis,
   fast-check) for changed backend functions and runs them before and after the PR. Works,
-  but it's bug-finding, which isn't Orbiter's job right now, so it's off by default.
+  but it's bug-finding, which isn't Cypher's job right now, so it's off by default.

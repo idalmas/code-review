@@ -44,14 +44,14 @@ class Settings(BaseSettings):
 
     # Renders and stress tests run PR code in Docker containers (see docs/self-hosting.md).
     sandbox_enabled: bool = False
-    sandbox_image: str = "orbiter-sandbox"
-    sandbox_work_dir: str = "/tmp/orbiter"
+    sandbox_image: str = "cypher-sandbox"
+    sandbox_work_dir: str = "/tmp/cypher"
     # Only used while installing dependencies; running PR code never has network access.
     sandbox_install_network: str = "bridge"
     sandbox_install_proxy: str | None = None
     sandbox_install_ca_file: str | None = None
     # Experimental: LLM-written stress tests of changed backend code. Off by default, since
-    # Orbiter leaves bug-finding to review bots (Claude Code Review, Greptile, ...).
+    # Cypher leaves bug-finding to review bots (Claude Code Review, Greptile, ...).
     stress_tests_enabled: bool = False
 
     cors_origins: str = "http://localhost:3000"

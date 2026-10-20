@@ -1,7 +1,7 @@
 [project]
-name = "orbiter-backend"
+name = "cypher-backend"
 version = "0.1.0"
-description = "Orbiter REST API"
+description = "Cypher REST API"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",

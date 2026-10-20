@@ -78,7 +78,7 @@ async function prepare(v) {
   };
 }
 
-/** Static build of the harness (relative URLs) that Orbiter serves for click-to-comment. */
+/** Static build of the harness (relative URLs) that Cypher serves for click-to-comment. */
 async function buildLive(v, outDir) {
   const config = await prepare(v);
   await build({ ...config, base: "./", build: { outDir, emptyOutDir: true, sourcemap: false } });

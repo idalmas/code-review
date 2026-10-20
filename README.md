@@ -1,4 +1,4 @@
-# Orbiter
+# Cypher
 
 A review surface for GitHub pull requests: read big diffs calmly, see UI changes rendered, and comment right where it matters. Works alongside AI reviewers like Claude Code Review and Greptile, whose comments show up inline.
 

@@ -33,8 +33,8 @@ __all__ = [
 ]
 
 
-# Headers for the clickable build: always sandboxed (opaque origin, so no access to Orbiter's
-# cookies, storage or API, even if opened directly), no network, embeddable only by Orbiter.
+# Headers for the clickable build: always sandboxed (opaque origin, so no access to Cypher's
+# cookies, storage or API, even if opened directly), no network, embeddable only by Cypher.
 LIVE_CSP = (
     "sandbox allow-scripts; default-src 'none'; script-src 'self'; "
     "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
@@ -85,7 +85,7 @@ def create_render_service(
     llm: LLMService,
     sandbox: SandboxService,
     work_dir: Path,
-    image: str = "orbiter-sandbox",
+    image: str = "cypher-sandbox",
 ) -> RenderService:
     from .impl import RenderServiceImpl
 

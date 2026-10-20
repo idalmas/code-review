@@ -6,7 +6,7 @@ import remarkGfm from "remark-gfm";
 /**
  * GitHub-flavored markdown for comment bodies. Review bots use HTML such as
  * <details>; it's allowed through GitHub's own sanitizing rules (no scripts, styles or
- * event handlers), so a comment can't run code in Orbiter.
+ * event handlers), so a comment can't run code in Cypher.
  */
 export function Markdown({ children }: { children: string }) {
   return (

@@ -558,7 +558,7 @@ wheels = [
 ]
 
 [[package]]
-name = "orbiter-backend"
+name = "cypher-backend"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

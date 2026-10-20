@@ -322,7 +322,7 @@ export function ReviewApp({ owner, repo, number }: Props) {
         {accessProblem && me?.login_enabled && !me.user && <SignInButton />}
         {accessProblem && me?.user && me.install_url && (
           <a href={me.install_url} className="text-accent hover:underline">
-            Install Orbiter on this repository ↗
+            Install Cypher on this repository ↗
           </a>
         )}
       </div>

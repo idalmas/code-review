@@ -1,4 +1,4 @@
-# Orbiter: working on it locally
+# Cypher: working on it locally
 
 Instructions for people and coding agents. Project conventions are in `CLAUDE.md`.
 
@@ -11,15 +11,15 @@ You need macOS or Linux with:
 - Docker (Docker Desktop on macOS), only for component renders
 
 ```bash
-git clone https://github.com/idalmas/code-review.git orbiter
-cd orbiter
+git clone https://github.com/idalmas/cypher.git
+cd cypher
 git checkout claude/amazing-wright-26dj6x   # until it's merged
 ```
 
 ### 1. Try it in demo mode (no accounts, no keys)
 
 ```bash
-docker build -t orbiter-sandbox sandbox-image   # once, ~5 min; skip if you don't need renders
+docker build -t cypher-sandbox sandbox-image   # once, ~5 min; skip if you don't need renders
 ./dev.sh demo
 ```
 
@@ -67,7 +67,7 @@ Helpful to include:
 - The URL. It encodes the PR and the open file (`…/pull/43#web%2Fsrc%2F…`), so the exact
   screen can be reopened. In demo mode everything else is reproducible too.
 - A screenshot, with the spot circled if it's small.
-- Window width and light/dark mode if it's about layout or color (Orbiter follows the OS theme).
+- Window width and light/dark mode if it's about layout or color (Cypher follows the OS theme).
 - What you did just before, for anything about behavior.
 
 Quick tags at the start help sort a batch: `[bug]`, `[layout]`, `[copy]`, `[flow]`, `[idea]`.
@@ -76,7 +76,7 @@ Quick tags at the start help sort a batch: `[bug]`, `[layout]`, `[copy]`, `[flow
 
 | Name               | What it is                                                  | Code (`frontend/src/…`)                                    |
 | ------------------ | ----------------------------------------------------------- | ---------------------------------------------------------- |
-| Top bar            | "Orbiter", your avatar, Sign in / out                       | `app/layout.tsx`, `components/AuthMenu.tsx`                |
+| Top bar            | "Cypher", your avatar, Sign in / out                       | `app/layout.tsx`, `components/AuthMenu.tsx`                |
 | Home               | "Open a pull request" and the link box                      | `app/page.tsx`, `components/LinkForm.tsx`                  |
 | PR header          | Title, branch, file count, viewed progress                  | `components/review/ReviewHeader.tsx`                       |
 | File tree          | Left sidebar: filter, toggles, files, comment counts        | `components/review/FileTree.tsx`, `ReviewApp.tsx`          |

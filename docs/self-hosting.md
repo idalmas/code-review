@@ -1,6 +1,6 @@
 # Self-hosting
 
-Orbiter is built to run entirely inside your own infrastructure. There is no vendor
+Cypher is built to run entirely inside your own infrastructure. There is no vendor
 server in the loop: your browser talks to your deployment, and your deployment talks to
 GitHub (and, if you turn on AI features, to the LLM provider *you* configure with *your* key).
 
@@ -80,7 +80,7 @@ to the person who started them.
 Setup, on a host with Docker:
 
 ```bash
-docker build -t orbiter-sandbox sandbox-image
+docker build -t cypher-sandbox sandbox-image
 # backend/.env
 SANDBOX_ENABLED=true
 # Behind a TLS-inspecting corporate proxy, for the install step only.
@@ -100,13 +100,13 @@ navigation hooks are replaced with simple stand-ins), and a Node/Bun or Python b
 
 ## GitHub App
 
-Orbiter signs people in through a GitHub App you own (create it under your organization:
+Cypher signs people in through a GitHub App you own (create it under your organization:
 **Settings → Developer settings → GitHub Apps → New GitHub App**):
 
 - **Homepage URL:** your `APP_URL`, e.g. `https://review.yourcompany.com`
 - **Callback URL:** `<APP_URL>/api/auth/callback`
-- **Expire user authorization tokens:** on (Orbiter refreshes them automatically)
-- **Webhook:** off. Orbiter doesn't need one.
+- **Expire user authorization tokens:** on (Cypher refreshes them automatically)
+- **Webhook:** off. Cypher doesn't need one.
 - **Repository permissions:**
   - Contents: **Read** (to render components and run checks on the PR's code)
   - Pull requests: **Read and write** (to read the diff and post review comments)
@@ -115,7 +115,7 @@ Orbiter signs people in through a GitHub App you own (create it under your organ
 
 Then **Generate a client secret**, copy the Client ID, and note the App's URL name
 (`github.com/apps/<slug>`) for `GITHUB_APP_SLUG`. Install the App on the repositories you want
-to review. People can only use Orbiter on repos where it's installed *and* they have access.
+to review. People can only use Cypher on repos where it's installed *and* they have access.
 
 An OAuth app also works (same settings, no slug), but it can only ask for the broad `repo`
 scope, so a GitHub App is recommended.

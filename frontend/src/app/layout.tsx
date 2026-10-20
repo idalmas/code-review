@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Orbiter",
+  title: "Cypher",
   description: "Review large GitHub pull requests without losing your place.",
 };
 
@@ -30,7 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex h-full flex-col font-sans">
         <nav className="flex h-11 shrink-0 items-center border-b border-border px-4">
           <Link href="/" className="font-semibold">
-            Orbiter
+            Cypher
           </Link>
           <div className="ml-auto">
             <AuthMenu />

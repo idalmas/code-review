@@ -1,5 +1,5 @@
 {
-  "name": "orbiter-sandbox",
+  "name": "cypher-sandbox",
   "private": true,
   "type": "module",
   "description": "Tools for the sandbox: renders component harnesses (Vite + Chromium) and runs generated stress tests.",

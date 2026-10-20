@@ -1,4 +1,4 @@
-"""Fake GitHub + fake LLM for trying Orbiter locally without accounts or API keys.
+"""Fake GitHub + fake LLM for trying Cypher locally without accounts or API keys.
 
 Run through `./dev.sh demo`. Serves two pull requests:
   acme/web#43   a small React change: bot review comments, renders, click-to-comment

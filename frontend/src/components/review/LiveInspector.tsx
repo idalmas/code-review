@@ -31,10 +31,10 @@ interface Props {
   onJump: (path: string) => void;
 }
 
-const isPick = (data: unknown): data is Pick & { type: "orbiter:pick" } => {
+const isPick = (data: unknown): data is Pick & { type: "cypher:pick" } => {
   const d = data as Record<string, unknown> | null;
   return (
-    d?.type === "orbiter:pick" &&
+    d?.type === "cypher:pick" &&
     Array.isArray(d.chain) &&
     d.chain.length < 200 &&
     d.chain.every((s) => typeof s === "string" && /^[^\n]+:\d+$/.test(s)) &&
@@ -94,7 +94,7 @@ export function LiveInspector({
           src={src}
           title={`Live render: ${state.name}`}
           // allow-scripts without allow-same-origin: the frame gets an opaque origin, so it
-          // can't read Orbiter's cookies or storage or call its API as the user.
+          // can't read Cypher's cookies or storage or call its API as the user.
           sandbox="allow-scripts"
           referrerPolicy="no-referrer"
           style={{

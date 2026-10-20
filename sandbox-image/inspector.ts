@@ -1,6 +1,6 @@
 // Click-to-comment inspector, active only when the page is opened with ?inspect=1 inside
-// Orbiter's sandboxed iframe. Hover outlines the element; click sends its source chain to the
-// parent window. Nothing here can reach Orbiter's cookies or API (opaque origin, no network).
+// Cypher's sandboxed iframe. Hover outlines the element; click sends its source chain to the
+// parent window. Nothing here can reach Cypher's cookies or API (opaque origin, no network).
 export function startInspector() {
   const box = document.createElement("div");
   Object.assign(box.style, {
@@ -10,7 +10,7 @@ export function startInspector() {
   document.body.appendChild(box);
 
   const tagged = (el: EventTarget | null) =>
-    el instanceof Element ? el.closest<HTMLElement>("[data-orbiter-src]") : null;
+    el instanceof Element ? el.closest<HTMLElement>("[data-cypher-src]") : null;
 
   document.addEventListener("mouseover", (e) => {
     const el = tagged(e.target);
@@ -29,11 +29,11 @@ export function startInspector() {
       e.stopPropagation();
       const chain: string[] = [];
       for (let el = tagged(e.target); el; el = tagged(el.parentElement)) {
-        chain.push(el.dataset.orbiterSrc!);
+        chain.push(el.dataset.cypherSrc!);
       }
       const first = tagged(e.target);
       const text = (first?.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
-      parent.postMessage({ type: "orbiter:pick", chain, tag: first?.tagName.toLowerCase(), text }, "*");
+      parent.postMessage({ type: "cypher:pick", chain, tag: first?.tagName.toLowerCase(), text }, "*");
     },
     true,
   );

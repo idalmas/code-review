@@ -75,7 +75,7 @@ class GitHubServiceImpl:
             headers={
                 "Accept": "application/vnd.github+json",
                 "X-GitHub-Api-Version": "2022-11-28",
-                "User-Agent": "orbiter",
+                "User-Agent": "cypher",
             },
             timeout=30.0,
             transport=transport,
